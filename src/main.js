@@ -80,7 +80,7 @@ async function checkRole(){
     if(!ZID){const f=await GD.find(ZNAME);ZID=f&&f.id}
     if(!ZID) return;
     const j=await (await GD.fetch('https://www.googleapis.com/drive/v3/files/'+ZID+'?fields=capabilities(canEdit)',{},false)).json();
-    const ro=!(j.capabilities&&j.capabilities.canEdit);
+    const ro=!!(j.capabilities&&j.capabilities.canEdit===false);
     if(ro!==READONLY){READONLY=ro;LS.set('sp.ro',ro);if(ro){dirty.clear();LS.set('sp.dirty',[])}render()}
   }catch(e){}
 }
@@ -392,6 +392,8 @@ function viewTermin(){
      <p class="hint" style="margin-top:8px">Der Liederplan enthält nie YouTube-Links und ist zum Weitergeben gedacht.</p>
     </div><div id="abg"></div></div></div>`;
 }
+/* Nummer -> Titel aus dem Liederverzeichnis (Katalog); mehrere Treffer = mehrdeutig */
+function titleForNr(b,n){const hit=[];for(const x of (CAT.L||new Map()).values())if(String(x.n)===String(n)&&(x.b||'SR')===(b||'SR')&&x.t&&!hit.includes(x.t))hit.push(x.t);return hit}
 /* Katalog-Auswahl für die Titel-Spalte: Vorschläge aus Register/Liederbuch, Freitext bleibt möglich */
 let CAT={G:new Map(),L:new Map()};
 function buildCat(){
@@ -518,7 +520,10 @@ function bindTermin(){
     if($('#addrow'))$('#addrow').onclick=()=>{t.rows.push({p:'',b:'SR',n:'',v:'',t:'',k:'L',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
     if($('#addg'))$('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
     $('#edb').oninput=e=>{const tr=e.target.closest('tr');if(!tr||!e.target.dataset.f)return;const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();pv()};
-    $('#edb').onchange=e=>{if(e.target.dataset.f==='t'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const x=(CAT[r.k]||new Map()).get(e.target.value);if(x){r.t=x.t;if(r.k!=='G'){r.b=x.b;r.n=x.n;r.v=''}commit();drawRows(ev,t);pv()}return}if(e.target.dataset.f==='k'||e.target.dataset.f==='b'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;commit();drawRows(ev,t);pv()}};
+    $('#edb').onchange=e=>{if(e.target.dataset.f==='n'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const n=String(r.n||'').trim();
+        if(n&&r.k!=='G'){const c=titleForNr(r.b,n);if(c.length===1){if(r.t!==c[0]){r.t=c[0];r.v=r.v||'';commit();drawRows(ev,t);pv();toast('Titel aus Liederverzeichnis: '+c[0])}}else if(c.length>1)toast('Nr. '+n+' ist mehrdeutig – Titel bitte wählen')}
+        return}
+      if(e.target.dataset.f==='t'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const x=(CAT[r.k]||new Map()).get(e.target.value);if(x){r.t=x.t;if(r.k!=='G'){r.b=x.b;r.n=x.n;r.v=''}commit();drawRows(ev,t);pv()}return}if(e.target.dataset.f==='k'||e.target.dataset.f==='b'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;commit();drawRows(ev,t);pv()}};
     $('#edb').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=+b.closest('tr').dataset.i;
       if(b.dataset.a==='del')t.rows.splice(i,1);
       if(b.dataset.a==='up'&&i>0)[t.rows[i-1],t.rows[i]]=[t.rows[i],t.rows[i-1]];
