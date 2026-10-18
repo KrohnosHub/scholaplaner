@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Schola-Planer St. Pelagiberg</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#2b3a67">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Spectral:wght@500;600;700&display=swap">
+<style>
+/*CSS*/
+#login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10000}
+#login[hidden]{display:none}
+#login .box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:24px;max-width:420px;width:100%}
+#login p{color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="login" hidden><div class="box"><h2>Schola-Planer</h2><p>St. Pelagiberg · Liederpläne &amp; Choral</p><p>Die Daten liegen in deinem Google Drive. Bitte anmelden, um sie zu laden.</p><button class="btn pri" id="lbtn">Mit Google anmelden</button><p id="lmsg" class="small"></p></div></div>
+<!--BODY-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/*BOOT*/
+</script>
+<script type="text/plain" id="main">
+/*MAIN*/
+</script>
+<script>if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+</body>
+</html>

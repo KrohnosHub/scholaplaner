@@ -1,0 +1,871 @@
+const D = window.__D;
+const $ = (s,r=document)=>r.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const WD=['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+const MON=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const fmtD = iso => { const [y,m,d]=iso.split('-').map(Number); return `${String(d).padStart(2,'0')}.${String(m).padStart(2,'0')}.${y}`; };
+const wdOf = iso => WD[new Date(iso+'T12:00:00').getDay()];
+const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+
+/* ---------- Zustand ---------- */
+const LS={get(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const S={tab:'kj',kj:'2026/27',q:'',art:'',status:'',unsure:false,sel:null,role:'org',
+  termine:LS.get('sp.termine',{}),reg:LS.get('sp.reg',{}),custom:LS.get('sp.custom',[]),
+  month:String(new Date().getMonth()+1),prev:'lieder',organ:true,rq:'',rart:'',hq:'',hbook:'SR',hber:'',gst:{c:-1,d:1},gfl:[],lst:{c:-1,d:1},lfl:[],rhid:false,rdup:false,aq:'',aart:''};
+const save=()=>{LS.set('sp.termine',S.termine);LS.set('sp.reg',S.reg);LS.set('sp.custom',S.custom)};
+const canEdit=()=>true,canSchola=()=>true,canOrgan=()=>true;
+/* ---------- Speicher: JSON-Datei in Google Drive (Notator-Ordner) ---------- */
+const ZNAME='Schola-Planer-Zustand.json', BNAME='Schola-Planer-Basis.json';
+let ZID=null, flushT=null, flushing=false;
+const dirty=new Set(LS.get('sp.dirty',[]));
+const busy=()=>{const a=document.activeElement;return a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)};
+function dlText(name,text,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function setSync(t,bad,login){const e=$('#sync');if(!e)return;e.innerHTML=(bad?`<span style="color:var(--warn)">${esc(t)}</span>`:t)+(login?` <button class="btn sm" data-login="1">Mit Google anmelden</button>`:'')}
+const okSync=()=>setSync(dirty.size?'Änderungen noch nicht gesichert …':'<b>●</b> in Drive gespeichert');
+function dbPut(coll,key){
+  const o=coll==='termine'?S.termine[key]:coll==='register'?S.reg[key]:null;
+  if(o) o.upd=new Date().toISOString();
+  dirty.add(coll+'\t'+(coll==='eigene'?'*':key));LS.set('sp.dirty',[...dirty]);
+  clearTimeout(flushT);flushT=setTimeout(flush,1500);
+  if(GD.cached()) okSync(); else setSync('Nur lokal gespeichert – bitte anmelden',true,true);
+}
+async function getRemote(){
+  if(!ZID){const f=await GD.find(ZNAME);ZID=f&&f.id}
+  const base={v:2,termine:{},reg:{},custom:[]};
+  if(!ZID) return base;
+  return Object.assign(base,await GD.readJson(ZID));
+}
+function mergeIn(R){
+  let tt=false,tr=false,tc=false;
+  for(const k in R.termine||{}){const r=R.termine[k],l=S.termine[k];if(dirty.has('termine\t'+k))continue;if(!l||(r.upd||'')>(l.upd||'')){S.termine[k]=r;tt=true}}
+  for(const k in R.reg||{}){const r=R.reg[k],l=S.reg[k];if(dirty.has('register\t'+k))continue;if(!l||(r.upd||'')>(l.upd||'')){S.reg[k]=r;tr=true}}
+  (R.custom||[]).forEach(c=>{if(!S.custom.some(y=>y.art===c.art&&y.name===c.name&&(y.nr||'')===(c.nr||''))){S.custom.push(c);tc=true}});
+  if(tr)for(const k in AUTO)delete AUTO[k];
+  return {tt,tr,tc};
+}
+function redraw(m){
+  if(m.tt||m.tr||m.tc){
+    if(m.tt){if(S.tab==='kj')drawList();else if(S.tab==='abg')render();else if(S.tab==='termin'&&!busy())render()}
+    if((m.tr||m.tc)&&S.tab==='ges'&&!busy())drawGes();
+  }
+}
+async function pull(){
+  if(!GD.cached()||flushing) return;
+  try{const R=await getRemote();const m=mergeIn(R);save();redraw(m);okSync()}
+  catch(e){setSync('Verbindung gestört: '+(e&&e.message||e),true)}
+}
+async function flush(){
+  if(flushing||!dirty.size) return;
+  if(!GD.cached()){setSync('Nur lokal gespeichert – bitte anmelden',true,true);return}
+  flushing=true;const snap=[...dirty];
+  try{
+    const R=await getRemote();
+    const keep=new Set(dirty);dirty.clear();mergeIn(R);keep.forEach(d=>dirty.add(d));
+    snap.forEach(d=>{const [c,k]=d.split('\t');
+      if(c==='termine'&&S.termine[k])R.termine[k]=S.termine[k];
+      else if(c==='register'&&S.reg[k])R.reg[k]=S.reg[k]});
+    R.custom=R.custom||[];S.custom.forEach(c=>{if(!R.custom.some(y=>y.art===c.art&&y.name===c.name&&(y.nr||'')===(c.nr||'')))R.custom.push(c)});
+    R.v=2;
+    ZID=await GD.writeJson(ZNAME,R,ZID);
+    snap.forEach(d=>dirty.delete(d));LS.set('sp.dirty',[...dirty]);save();okSync();
+  }catch(e){setSync('Speichern fehlgeschlagen: '+(e&&e.message||e),true,!GD.cached())}
+  flushing=false;
+  if(dirty.size){clearTimeout(flushT);flushT=setTimeout(flush,4000)}
+}
+async function checkBasis(){
+  try{const f=await GD.find(BNAME);if(!f)return;const mod=await idbGet('basisMod');
+    if(mod&&f.modifiedTime===mod)return;
+    const D2=await GD.readJson(f.id);await idbSet('basis',D2);await idbSet('basisMod',f.modifiedTime);
+    if(mod){const e=$('#toast');e.innerHTML='Neue Basisdaten geladen. <button class="btn sm" onclick="location.reload()">Neu laden</button>';e.hidden=false}
+  }catch(e){}
+}
+async function initDb(){
+  document.addEventListener('click',async e=>{
+    const b=e.target.closest('[data-login]');if(!b)return;
+    try{await GD.token(true);await initDb.go()}catch(err){setSync(String(err&&err.message||err),true,true)}});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&GD.cached()){pull().then(flush)}});
+  setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
+  initDb.go=async()=>{setSync('verbinde …');await pull();await flush();checkBasis()};
+  if(GD.cached()) initDb.go(); else setSync('Nicht angemeldet',true,true);
+}
+function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}
+
+/* ---------- Liturgische Farbe (Heuristik, bitte prüfen) ---------- */
+function lcolor(ev){
+  const n=ev.n, a=ev.a;
+  if(/Advent|Fastensonntag|Septuagesima|Sexagesima|Quinquagesima|Quatember|Passion|Aschermittwoch|Karwoche|Karsamstag|Vigil|Allerseelen|Requiem/.test(n)&&!/Gaudete|Laetare/.test(n)) return 'var(--lv)';
+  if(/Gaudete|Laetare/.test(n)) return 'var(--lrose)';
+  if(/Pfingstsonntag|Pfingstmontag|Palmsonntag|Karfreitag|Kreuz|Apostel|Petrus|Märtyrer|Stephanus|Unschuldige|Blut|Herz-Jesu-Fest|Urs|Lorenz|Sebastian|Agatha|Cäcilia|Johannes der T|Pfingst/.test(n)&&!/n\. Pfingsten/.test(n)) return 'var(--lr)';
+  if(/So\. n\. Pfingsten|n\. Epiphanie|Sühnenacht|Sonntag$/.test(n)&&!/Oster|Weihnacht|Dreifaltigkeit|Christkönig/.test(n)&&a==='Sonntag') return 'var(--lg)';
+  if(a==='Quatember'||/Herz-Jesu-Freitag/.test(n)) return a==='Quatember'?'var(--lv)':'var(--lw)';
+  if(/Sühnenacht/.test(n)) return 'var(--lw)';
+  return 'var(--lw)';
+}
+
+/* ---------- Termine ---------- */
+const EV=D.events.map((e,i)=>({...e,key:e.d+'|'+e.n,i}));
+const evByKey=Object.fromEntries(EV.map(e=>[e.key,e]));
+const plansByCanon={}; D.plans.forEach(p=>{(plansByCanon[p.c]=plansByCanon[p.c]||[]).push(p)});
+const planById=Object.fromEntries(D.plans.map(p=>[p.id,p]));
+const CANONS=[...new Set(D.plans.map(p=>p.c))].sort((a,b)=>a.localeCompare(b,'de'));
+function planScore(p,sch){sch=(sch==='Frauen')?'Frauen':'Männer';let s=0;if(p.s!==sch)s+=5;if(/ohne|Kratzer|Corona|Kurhaus/.test(p.v||''))s+=3;if(/Standard/.test(p.v||''))s-=1;return [s,-(+p.y||0),-(+(p.m||'0').slice(0,4))]}
+function bestPlans(can,sch){const l=(plansByCanon[can]||[]).slice();l.sort((a,b)=>{const x=planScore(a,sch),y=planScore(b,sch);return x[0]-y[0]||x[1]-y[1]||x[2]-y[2]});return l}
+const planLabel=p=>`${p.t}${p.s!=='Männer'?' · '+p.s:''}${p.y?' · '+p.y:''}${p.m?' · geändert '+p.m.slice(0,7):''}`;
+const rowFromArr=a=>({p:a[0]||'',b:a[1]||'',n:a[2]||'',v:a[3]||'',t:a[4]||'',k:a[5]||'L',o:''});
+/* Messen: «Ite missa est» steht nach dem Danklied, sonst direkt vor dem Schlussevangelium (nur künftige Termine) */
+const TODAY=new Date().toISOString().slice(0,10);
+function addIte(rows,ev){
+  if(!ev||ev.act||!ev.d||ev.d<TODAY||!Array.isArray(rows)) return rows;
+  const ag=rows.find(r=>/^Agnus/i.test(r.p||'')&&/^Messe/i.test(r.t||'')); if(!ag) return rows;
+  const old=rows.find(r=>/^Ite\b/i.test(r.p||''));
+  const ite=old||{p:'Ite missa est',b:ag.b,n:ag.n,v:'',t:ag.t,k:ag.k||'L',o:''};
+  const rest=rows.filter(r=>r!==old);
+  let i=-1;
+  for(let j=rest.length-1;j>=0;j--){if(/^Dankl|^Dank/i.test(rest[j].p||'')){i=j+1;break}}
+  if(i<0){const j=rest.findIndex(r=>/schlussev/i.test(r.p||''));if(j>=0)i=j}
+  if(i<0){const j=rest.findIndex(r=>/^Auszug/i.test(r.p||''));i=j>=0?j:rest.length}
+  const out=rest.slice();out.splice(i,0,ite);
+  return out.length===rows.length&&out.every((r,k)=>r===rows[k])?rows:out}
+const AUTO={};
+function defaultTermin(ev){
+  if(AUTO[ev.key]) return AUTO[ev.key];
+  const pid=ev.act||ev.pid, p=pid&&planById[pid];
+  const t={sch:'Männer',tpl:pid||'',rows:p?addIte(p.r.map(rowFromArr),ev):[],note:'',status:p?(ev.act?'fertig':'Vorschlag'):'offen',src:ev.act?'archiv':'vorschlag'};
+  if(p){const a=applyReg(ev,t.rows);t.rows=a.rows;t.regInfo=a.info}
+  return AUTO[ev.key]=t;
+}
+function getTermin(ev){const t=S.termine[ev.key];if(!t)return defaultTermin(ev);const r=addIte(t.rows,ev);if(r!==t.rows)t.rows=r;return t}
+/* ---------- Zuordnung Gesang <-> Fest (aus dem Register) ---------- */
+const stripCnt=x=>String(x||'').replace(/\s*\(\d+\)/g,'');
+const posClass=p=>{p=norm(p);return /introit|lntroit|int?roitus/.test(p)?'int':/gradual|allelu|tractus/.test(p)?'gra':/offert|opfer/.test(p)?'off':/commun|kommun/.test(p)?'com':p};
+const cleanName=n=>norm(String(n||'').replace(/\(.*?\)/g,' ').replace(/\b(Männerschola|Frauenschola|Schola)\b/gi,' '));
+const sameT=(t,n)=>{const a=cleanName(t),b=cleanName(n);return a.length>=5&&b.length>=5&&(a===b||a.startsWith(b)||b.startsWith(a))};
+const chantPos=r=>String(r.po||'').split(/\s*[\/,]\s*/)[0]||'Communio';
+const assignedTo=c=>c?REG().filter(r=>!r.hide&&r.fx&&r.fe.includes(c)):[];
+const dropped=c=>c?REG().filter(r=>!r.hide&&r.fx&&r.fe0.includes(c)&&!r.fe.includes(c)):[];
+function insertChant(rows,r){
+  const cls=posClass(chantPos(r)); const title=r.name;
+  if(rows.some(x=>x.k==='G'&&(sameT(x.t,title)||sameT(x.t,r.orig)))) return 'vorhanden';
+  const i=rows.findIndex(x=>x.k==='G'&&posClass(x.p)===cls&&!REG().some(y=>y.fx&&y.key!==r.key&&sameT(x.t,y.name)));
+  if(i>=0){rows[i]={...rows[i],t:title,n:'',v:'',b:'',o:''};return 'ersetzt'}
+  let j=rows.findIndex(x=>/auszug|schluss|stille/i.test(x.p||'')); if(j<0) j=rows.length;
+  rows.splice(j,0,{p:chantPos(r),b:'',n:'',v:'',t:title,k:'G',o:''});return 'ergänzt'}
+function applyReg(ev,rows){
+  const info={add:[],del:[]}; if(!ev||!ev.c||ev.act) return {rows,info};
+  rows=rows.slice();
+  dropped(ev.c).forEach(r=>{const n0=rows.length;rows=rows.filter(x=>!(x.k==='G'&&(sameT(x.t,r.name)||sameT(x.t,r.orig))));if(rows.length<n0)info.del.push(r.name)});
+  assignedTo(ev.c).forEach(r=>{const a=insertChant(rows,r);if(a!=='vorhanden')info.add.push(r.name)});
+  return {rows,info}}
+
+function setTermin(ev,t){delete t.src;delete t.regInfo;S.termine[ev.key]=t;save();dbPut('termine',ev.key,{sch:t.sch,tpl:t.tpl||'',rows:JSON.stringify(t.rows),note:t.note||'',status:t.status,vars:JSON.stringify(t.vars||{})})}
+function applyTemplate(ev,t,pid){
+  const p=planById[pid]; if(!p) return;
+  t.tpl=pid; {const a=applyReg(ev,addIte(p.r.map(rowFromArr),ev));t.rows=a.rows;t.regInfo=a.info}
+  if(p.s&&p.s!=='Männer'&&!t.schaSet) t.sch='Männer';
+  if(t.status==='offen'||t.status==='Vorschlag') t.status='Entwurf';
+}
+function statusOf(ev){return getTermin(ev).status}
+
+/* ---------- Register-Zugriff ---------- */
+const regKey=(a,nr,name)=>a+'|'+nr+'|'+name;
+const REG=()=>{
+  const base=D.chants.map(c=>({art:c[0],nr:c[1],name:c[2],use:c[3],cnt:c[4],last:c[5],hint:c[6],yt:c[7]||'',cn:c[8]||'',on:c[9]||'',fe0:c[10]||[],po0:c[11]!=null?c[11]:(c[3]||''),key:regKey(c[0],c[1],c[2]),base:true}));
+  const cu=S.custom.map(c=>({art:c.art,nr:c.nr||'',name:c.name,use:'',cnt:'',last:'',hint:'',yt:'',fe0:[],po0:'',key:regKey(c.art,c.nr||'',c.name),base:false}));
+  return base.concat(cu).map(r=>{const o=S.reg[r.key]||{};const x={...r,orig:r.name,onr:r.nr,hide:!!o.hide};
+    ['cn','yt','on'].forEach(k=>{if(o[k]==='-')x[k]='';else if(o[k])x[k]=o[k]});if(o.nt)x.nt=o.nt;x.fx=Array.isArray(o.fe);x.fe=x.fx?o.fe:x.fe0;x.po=o.po!=null&&o.po!==''?o.po:x.po0;if(o.nm)x.name=o.nm;if(o.nrs)x.nr=o.nr||'';x.raw={cn:x.cn||'',on:x.on||'',nt:x.nt||''};const nl=normLinks(x);x.cn=nl.cn;x.on=nl.on;x.nt=nl.nt;return x});
+};
+/* Links: «Bezeichnung|URL ; Bezeichnung|URL» oder nur URLs */
+const parseLinks=s=>String(s||'').split(/\s*;\s*/).map(x=>x.trim()).filter(Boolean).map(x=>{const i=x.indexOf('|');return i>0&&/^https?:/.test(x.slice(i+1))?{l:x.slice(0,i),u:x.slice(i+1)}:/^https?:/.test(x)?{l:'',u:x}:null}).filter(Boolean);
+const partOf=p=>{const m=/(?:^|[^A-Za-z])(Kyrie|Gloria|Sanctus|Agnus|Ite\b)/i.exec(String(p||'').trim());return m?m[1].toLowerCase():''};
+const lnkStr=l=>l.map(x=>(x.l?x.l+'|':'')+x.u).join(' ; ');
+/* Links eines Gesangs; bei Messteilen (Kyrie, Gloria …) nur die Links mit passender Teil-Bezeichnung */
+const linksFor=(s,pos)=>{const l=parseLinks(s),pp=partOf(pos);if(!pp)return l;if(!l.some(x=>partOf(x.l)))return l;return l.filter(x=>!partOf(x.l)||partOf(x.l)===pp)};
+
+/* ---- Notator-Dateien (nt) und Link-Bereinigung ---- */
+const ntMid=u=>{const m=/\/d\/([\w-]{15,})|[?&]id=([\w-]{15,})|^([\w-]{25,})$/.exec(String(u||'').trim());return m&&(m[1]||m[2]||m[3])};
+/* nt: eine Datei (URL/ID) oder «Teil|URL ; Teil|URL» (z. B. Kyrie, Gloria …) */
+const ntParse=s=>String(s||'').split(/\s*;\s*/).map(x=>x.trim()).filter(Boolean).map(x=>{const i=x.indexOf('|');const l=i>0&&!/^https?:/.test(x.slice(0,i))?x.slice(0,i).trim():'';const u=(l?x.slice(i+1):x).trim();return ntMid(u)?{l,u}:null}).filter(Boolean);
+const ntStr=l=>l.map(x=>(x.l?x.l+'|':'')+x.u).join(' ; ');
+const PART_RANK=[/introit/i,/kyrie/i,/gloria/i,/graduale|tractus|absolve/i,/sequenz|dies irae/i,/credo/i,/offert/i,/sanctus/i,/agnus/i,/communio|kommunion/i,/^ite\b/i];
+const partRank=l=>{const i=PART_RANK.findIndex(r=>r.test(l||''));return i};
+const sortParts=a=>a.map((x,i)=>({x,i,r:partRank(x.l)})).sort((p,q)=>p.r-q.r||p.i-q.i).map(p=>p.x);
+const NT_LAB=/\.notator|Notator-Datei/i;
+/* Bezeichnung bereinigen: «Choral»/«Orgel»/«(Notator-PDF)» sind überflüssig; Messteil bleibt */
+const cleanLab=l=>{let s=String(l||'').trim();
+  s=s.replace(/^.*_(Kyrie|Gloria|Sanctus|Agnus Dei|Ite missa est)$/i,'$1');
+  s=s.replace(/\s*[–-]?\s*Notator-Datei.*$/i,'').replace(/\s*\(\.notator\)\s*$/i,'');
+  s=s.replace(/\s*\((?:Choral|Orgel)[^)]*\)\s*$/i,'').replace(/\s*[–-]\s*(?:Choral|Orgel)\s*$/i,'');
+  if(/^(Choral|Orgel|Choralnoten|Organistennoten)(\b.*)?$/i.test(s)) s='';
+  return s.trim()};
+const dedupL=a=>{const seen=new Set();return a.filter(x=>{const k=ntMid(x.u)||x.u;if(seen.has(k))return false;seen.add(k);return true})};
+function normLinks(x){
+  let nts=ntParse(x.nt); const out={};
+  for(const k of ['cn','on']){const keep=[];
+    for(const l of parseLinks(x[k])){
+      if(NT_LAB.test(l.l||'')){const lab=cleanLab(l.l);if(!nts.some(n=>ntMid(n.u)===ntMid(l.u)))nts.push({l:lab,u:l.u});continue}
+      keep.push({l:cleanLab(l.l),u:l.u})}
+    out[k]=lnkStr(sortParts(dedupL(keep)))}
+  nts=sortParts(dedupL(nts.map(n=>({l:cleanLab(n.l),u:n.u}))));
+  return {cn:out.cn,on:out.on,nt:ntStr(nts)}}
+/* bereinigte Links dauerhaft im Register speichern (nur Bearbeiter) */
+function persistNorm(){let n=0;
+  REG().forEach(r=>{const w=r.raw;if(!w||(w.cn===r.cn&&w.on===r.on&&w.nt===r.nt))return;
+    const ob=S.reg[r.key]=S.reg[r.key]||{};ob.cn=r.cn||(w.cn?'-':'');ob.on=r.on||(w.on?'-':'');ob.nt=r.nt||'';save();regPut(r.key);n++});
+  return n}
+const lnkHtml=(s,lab)=>parseLinks(s).map((x,i,a)=>`<a class="l1" href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.l||(a.length>1?lab+' '+(i+1):lab))}</a>`).join('');
+const ntTitle=n=>String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\(.*?\)/g,' ').replace(/\b(Männerschola|Maennerschola|Frauenschola|Männerchor|Chörli|Chor|Schola)\b/gi,' ').replace(/\bSR\s*\d+/gi,' ').replace(/[….:;*]+/g,' ').replace(/\s+/g,' ').trim().split(/\s+/).slice(0,6).join(' ');
+const ntLink=(n,x)=>'https://krohnoshub.github.io/notator/#drive='+ntMid(x.u)+'&song='+encodeURIComponent(ntTitle(n));
+const ntUrl=(n,c,pos)=>{const t=encodeURIComponent(ntTitle(n));
+  if(c&&c.nt){const l=ntParse(c.nt),pp=partOf(pos);
+    const x=(pp&&l.find(y=>partOf(y.l)===pp))||l.find(y=>!y.l)||(!pp&&l[0]);
+    if(x)return ntLink(n,x)}
+  return 'https://krohnoshub.github.io/notator/#song='+t};
+const regPut=k=>{const o=S.reg[k]||{};dbPut('register',k,{cn:o.cn||'',yt:o.yt||'',on:o.on||'',nm:o.nm||'',nr:o.nr||'',nrs:!!o.nrs,hide:!!o.hide,fe:Array.isArray(o.fe)?JSON.stringify(o.fe):'',po:o.po||'',nt:o.nt||''})};
+/* ---------- Tabellen: Sortieren + Filtern je Spalte ---------- */
+const numKey=v=>{const m=String(v??'').match(/\d+/);return m?parseInt(m[0],10):1e9};
+function tblApply(rows,get,cols,st,fl){
+  let l=rows.filter(r=>{const v=get(r);return cols.every((c,i)=>{const f=fl[i];if(!f)return true;const x=String(v[i]??'');if(f==='(leer)')return !x.trim();if(f==='(vorhanden)')return !!x.trim();return norm(x).includes(norm(f))})});
+  if(st.c>=0){const c=st.c,num=cols[c].num;l=l.map(r=>[r,get(r)[c]]).sort((a,b)=>{let x=a[1],y=b[1];
+    if(num){const d=numKey(x)-numKey(y);if(d)return d*st.d}
+    return String(x??'').localeCompare(String(y??''),'de',{numeric:true})*st.d}).map(z=>z[0])}
+  return l;
+}
+function tblVals(rows,get,cols){return cols.map((c,i)=>{if(c.nofilter||c.nodl)return null;const set=new Set();rows.forEach(r=>{const x=String(get(r)[i]??'').trim();if(x&&x.length<=60)set.add(x)});if(set.size>150)return null;const a=[...set].sort((x,y)=>x.localeCompare(y,'de',{numeric:true}));return c.link?['(vorhanden)','(leer)']:a})}
+function tblHead(cols,st,fl,pre,vals){
+  return '<tr>'+cols.map((c,i)=>c.nosort?`<th>${c.l}</th>`:`<th class="sortable" data-c="${i}" role="button" tabindex="0" title="Sortieren">${c.l}<span class="ar">${st.c===i?(st.d>0?' ▲':' ▼'):''}</span></th>`).join('')+'</tr>'
+   +'<tr class="fr">'+cols.map((c,i)=>c.nofilter?'<th></th>':`<th><input class="cf" data-c="${i}" type="search" list="dl-${pre||'t'}-${i}" placeholder="wählen / tippen" value="${esc(fl[i]||'')}" aria-label="Filter ${esc(c.l)}">${(vals&&vals[i]&&vals[i].length)?`<datalist id="dl-${pre||'t'}-${i}">${vals[i].map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`:''}</th>`).join('')+'</tr>';
+}
+function tblBind(root,st,fl,redraw,rehead){
+  root.onclick=e=>{const th=e.target.closest('th.sortable');if(!th)return;const c=+th.dataset.c;if(st.c===c)st.d=-st.d;else{st.c=c;st.d=1}rehead();redraw()};
+  root.onkeydown=e=>{if(e.key==='Enter'){const th=e.target.closest('th.sortable');if(th)th.click()}};
+  root.oninput=e=>{const i=e.target.closest('.cf');if(!i)return;fl[+i.dataset.c]=i.value;redraw()};
+}
+const isChant=r=>r.k==='G'||(r.b==='SR'&&/^\d+/.test(r.n||'')&&parseInt(r.n,10)>=410&&parseInt(r.n,10)<=500);
+function lookupChant(row,reg){
+  const t=norm(row.t); if(!t&&!row.n) return null;
+  if(row.b==='SR'&&row.n){const x=reg.find(r=>!r.hide&&r.nr==='SR '+row.n)||reg.find(r=>r.nr==='SR '+row.n);if(x) return x}
+  if(!t) return null;
+  const hit=(n)=>{const m=norm(n);return m&&(m===t||(t.length>=8&&m.startsWith(t.slice(0,Math.min(t.length,24))))||(m.length>=8&&t.startsWith(m.slice(0,24))))};
+  return reg.find(r=>!r.hide&&(hit(r.name)||hit(r.orig)))||reg.find(r=>hit(r.name)||hit(r.orig))||null;
+}
+
+/* ---------- Plan-Text ---------- */
+function rowNr(r){
+  if(r.k==='G') return '';
+  if(r.k==='O') return '';
+  const bk=r.b&&r.b!=='SR'?r.b+' ':'';
+  return (bk+(r.n||'')+(r.v?', '+r.v:'')).trim();
+}
+function rowTitle(r){
+  if(r.k==='O') return r.t||'Orgel';
+  if(r.k==='G') return (r.t||'')+(r.t?' (Schola)':'');
+  return r.t||'';
+}
+function planText(ev,t){
+  const lines=[`${ev.n}`,`${wdOf(ev.d)}, ${fmtD(ev.d)}`,''];
+  t.rows.forEach(r=>{const n=rowNr(r);lines.push(`${r.p}: ${n?n+'  ':''}${rowTitle(r)}`.trim())});
+  return lines.join('\n');
+}
+
+/* ---------- Ansichten ---------- */
+const TABS=[['kj','Kirchenjahr'],['termin','Termin'],['ges','Gesänge (Choral)'],['lb','Liederbuch'],['arch','Planarchiv'],['abg','Abgleich 2025/26'],['daten','Daten & Hilfe']];
+function renderTabs(){
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}</button>`).join('');
+}
+function render(){
+  renderTabs();
+  const v=$('#view');
+  if(S.tab==='kj') v.innerHTML=viewKJ(), bindKJ();
+  else if(S.tab==='termin') v.innerHTML=viewTermin(), bindTermin();
+  else if(S.tab==='ges') v.innerHTML=viewGes(), bindGes();
+  else if(S.tab==='lb') v.innerHTML=viewLB(), bindLB();
+  else if(S.tab==='arch') v.innerHTML=viewArch(), bindArch();
+  else if(S.tab==='abg') v.innerHTML=viewAbg(), bindAbg();
+  else v.innerHTML=viewDaten(), bindDaten();
+}
+
+/* --- Kirchenjahr --- */
+function viewKJ(){
+  const arts=[...new Set(EV.map(e=>e.a))].sort();
+  return `<div class="tools">
+    <label>Kirchenjahr<select id="kj"><option>2025/26</option><option>2026/27</option><option>2027/28</option></select></label>
+    <label>Monat<select id="mon"><option value="">alle</option>${MON.map((m,i)=>`<option value="${i+1}" ${S.month==String(i+1)?'selected':''}>${m}</option>`).join('')}</select></label>
+    <label>Suche<input type="search" id="q" placeholder="Fest, Datum, Hinweis" value="${esc(S.q)}"></label>
+    <label>Art<select id="art"><option value="">alle</option>${arts.map(a=>`<option ${S.art===a?'selected':''}>${esc(a)}</option>`).join('')}</select></label>
+    <label>Status<select id="status"><option value="">alle</option>${['offen','Vorschlag','Entwurf','fertig'].map(a=>`<option ${S.status===a?'selected':''}>${a}</option>`).join('')}</select></label>
+    <label class="chk"><input type="checkbox" id="unsure" ${S.unsure?'checked':''}> nur Unsicheres</label>
+    <span class="count" id="cnt"></span>
+  </div>
+  <div class="tw"><table><thead><tr><th>Datum</th><th>Tag</th><th>Fest / Sonntag</th><th>Art</th><th>Schola</th><th>Status</th><th>Hinweis</th></tr></thead><tbody id="list"></tbody></table></div>
+  <p class="hint">Farbstreifen = liturgische Farbe (Näherung, bitte prüfen). Hinweise mit «UNSICHER» sind noch nicht bestätigt. Klick auf eine Zeile öffnet den Termin.</p>`;
+}
+function filtered(){
+  const q=norm(S.q);
+  return EV.filter(e=>e.kj===S.kj&&(!S.month||+e.d.slice(5,7)===+S.month)&&(!S.art||e.a===S.art)&&(!S.status||statusOf(e)===S.status)&&(!S.unsure||/UNSICHER|prüfen|bestätigen/i.test(e.note))
+    &&(!q||norm(e.n+' '+e.note+' '+fmtD(e.d)+' '+wdOf(e.d)).includes(q)));
+}
+function drawList(){
+  const l=filtered(); let last=''; const out=[];
+  l.forEach(e=>{
+    const m=MON[+e.d.slice(5,7)-1]+' '+e.d.slice(0,4);
+    if(m!==last){out.push(`<tr class="month"><td colspan="7">${m}</td></tr>`);last=m}
+    const t=getTermin(e); const st=statusOf(e);
+    const un=/UNSICHER|prüfen|bestätigen/i.test(e.note);
+    out.push(`<tr class="row-ev ${e.a==='Sonntag'?'sun':''}" tabindex="0" data-key="${esc(e.key)}" style="--lc:${lcolor(e)}">
+      <td class="num">${fmtD(e.d)}</td><td>${wdOf(e.d).slice(0,2)}</td><td><span class="sw"></span>${esc(e.n)}</td><td class="small muted">${esc(e.a)}</td>
+      <td class="small">${esc(t.sch)}</td>
+      <td><span class="pill ${st==='fertig'?'ok':st==='Entwurf'?'draft':''}">${st}</span></td>
+      <td class="small">${un?'<span class="pill warn">unsicher</span> ':''}${esc(e.note.replace(/^UNSICHER:?\s*/,''))}</td></tr>`);
+  });
+  $('#list').innerHTML=out.join('')||'<tr><td colspan="7" class="muted">Keine Treffer.</td></tr>';
+  $('#cnt').textContent=l.length+' Einträge';
+}
+function bindKJ(){
+  $('#kj').value=S.kj; drawList();
+  $('#kj').onchange=e=>{S.kj=e.target.value;drawList()};
+  $('#mon').onchange=e=>{S.month=e.target.value;drawList()};
+  $('#q').oninput=e=>{S.q=e.target.value;drawList()};
+  $('#art').onchange=e=>{S.art=e.target.value;drawList()};
+  $('#status').onchange=e=>{S.status=e.target.value;drawList()};
+  $('#unsure').onchange=e=>{S.unsure=e.target.checked;drawList()};
+  const open=el=>{const tr=el.closest('tr.row-ev');if(tr){S.sel=tr.dataset.key;S.tab='termin';render();scrollTo(0,0)}};
+  $('#list').onclick=e=>open(e.target);
+  $('#list').onkeydown=e=>{if(e.key==='Enter')open(e.target)};
+}
+
+/* --- Termin --- */
+function viewTermin(){
+  const ev=S.sel&&evByKey[S.sel];
+  if(!ev) return `<div class="card"><h2>Termin</h2><p class="muted">Wähle im Reiter «Kirchenjahr» einen Termin, oder lege hier einen freien Termin an (Sonderanlass).</p>
+    <div class="fields"><label><span>Datum</span><input type="date" id="fd"></label><label><span>Bezeichnung</span><input type="text" id="fn" placeholder="z.B. Wallfahrt, Hochzeit"></label></div>
+    <button class="btn pri" id="fadd">Termin anlegen</button></div>`;
+  const t=getTermin(ev); const ro=!canEdit();
+  const sugg=bestPlans(ev.c,t.sch);
+  const dis=ro?'disabled':'';
+  const tplOpts=(sugg.length?`<optgroup label="Passend zum Fest (${esc(ev.c||'')})">${sugg.map(p=>`<option value="${p.id}" ${t.tpl===p.id?'selected':''}>${esc(planLabel(p))}</option>`).join('')}</optgroup>`:'')
+    +`<optgroup label="Anderer Festtyp"><option value="">– Festtyp wählen –</option>${CANONS.map(c=>`<option value="c:${esc(c)}">${esc(c)}</option>`).join('')}</optgroup>`;
+  return `<div class="grid2"><div>
+   <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" id="back">← Kirchenjahr</button>
+     <h2 style="flex:1;min-width:200px"><span class="sw" style="--lc:${lcolor(ev)}"></span>${esc(ev.n)}</h2></div>
+    <div class="muted" style="margin-top:4px">${wdOf(ev.d)}, ${fmtD(ev.d)} · ${esc(ev.a)}</div>
+    ${ev.note?`<p class="note" style="margin:10px 0 0">${esc(ev.note)}</p>`:''}
+    ${(()=>{const p=t.tpl&&planById[t.tpl];return p?`<p class="small muted" style="margin:10px 0 0">Vorlage: <a href="https://drive.google.com/file/d/${p.id}/view" target="_blank" rel="noopener">${esc(planLabel(p))}</a>${ev.act&&t.tpl===ev.act?' · tatsächlicher Plan aus dem Archiv':(t.tpl===ev.pid?' · Vorschlag aus dem Vorjahr':'')}</p>`:`<p class="small muted" style="margin:10px 0 0">Keine Vorlage zugeordnet. Festtyp unter «Vorlage laden» wählen.</p>`})()}
+    <div class="fields">
+      <label><span>Schola</span><select id="sch" ${dis}>${['Männer','Frauen','Männer + Frauen','keine'].map(x=>`<option value="${x}" ${t.sch===x?'selected':''}>${x}${(t.vars&&t.vars[x]&&t.vars[x].rows&&t.vars[x].rows.length)?' ● Version':''}</option>`).join('')}</select></label>
+      <label><span>Status</span><select id="st" ${dis}>${['offen','Vorschlag','Entwurf','fertig'].map(x=>`<option ${t.status===x?'selected':''}>${x}</option>`).join('')}</select></label>
+      <label><span>Vorlage laden</span><select id="tpl" ${dis}>${tplOpts}</select></label>
+    </div>
+    ${ro?'':`<div class="fields"><label style="grid-column:1/-1"><span>Notiz zum Termin (intern)</span><input type="text" id="tnote" value="${esc(t.note)}"></label></div>`}
+    ${t.rows.length||!ro?'':`<p class="muted">Noch kein Plan angelegt.</p>`}
+   </div>
+   <div class="card"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h3>Ablauf</h3>${ro?'':`<span><button class="btn sm" id="addrow">+ Zeile</button> <button class="btn sm" id="addg">+ Schola-Gesang</button></span>`}</div>
+    <div class="rowsw"><table class="ed" id="ed"><thead><tr><th>Position</th><th>Buch</th><th>Nr.</th><th>Strophen</th><th>Titel / Incipit</th><th>Typ</th>${canOrgan()?'<th>Orgel</th>':''}<th></th></tr></thead><tbody id="edb"></tbody></table></div>
+    <p class="hint">Typ «Schola» = Choralgesang (erscheint im Liederplan nur als Titel, im Scholaplan mit Links). Buch SR = Salve Regina (Standard).</p>
+   </div><div id="regc"></div></div>
+   <div>
+    <div class="card">
+     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+      <div class="seg" role="group" aria-label="Vorschau">
+        <button data-prev="lieder" aria-pressed="${S.prev==='lieder'}">Liederplan</button>
+        ${canSchola()?`<button data-prev="schola" aria-pressed="${S.prev==='schola'}">Scholaplan</button>`:''}
+      </div>
+      ${S.prev==='schola'&&canOrgan()?`<label class="small"><input type="checkbox" id="organ" ${S.organ?'checked':''}> Orgelnoten zeigen</label>`:''}
+     </div>
+     <div id="prev" style="margin-top:12px"></div>
+     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+       <button class="btn pri" id="pdf">PDF ${S.prev==='lieder'?'Liederplan':'Scholaplan'}</button>
+       <button class="btn" id="copy">Text kopieren</button>
+     </div>
+     <p class="hint" style="margin-top:8px">Der Liederplan enthält nie YouTube-Links und ist zum Weitergeben gedacht.</p>
+    </div><div id="abg"></div></div></div>`;
+}
+/* Katalog-Auswahl für die Titel-Spalte: Vorschläge aus Register/Liederbuch, Freitext bleibt möglich */
+let CAT={G:new Map(),L:new Map()};
+function buildCat(){
+  const G=new Map(),L=new Map();
+  REG().filter(r=>!r.hide).forEach(r=>{
+    const sr=/^SR\s*(\d+)/.exec(r.nr||'');
+    if(/^Ordinarium/.test(r.art)&&sr){const v='SR '+sr[1]+' · '+r.name;if(!L.has(v))L.set(v,{b:'SR',n:sr[1],t:r.name,lab:r.art.split('/')[0].trim()})}
+    if(!G.has(r.name))G.set(r.name,{t:r.name,lab:String(r.art||'').split('(')[0].trim()+(r.nr?' · '+r.nr:'')})});
+  D.hym.forEach(h=>{const num=h[0]==='SR'&&/^\d+/.test(h[1]);const v=num?'SR '+h[1]+' · '+h[2]:h[2];
+    if(!L.has(v))L.set(v,num?{b:'SR',n:h[1],t:h[2],lab:h[3]||''}:{b:'',n:'',t:h[2],lab:h[0]!==h[2]?h[0]:''})});
+  CAT={G,L};
+}
+const catOpts=k=>[...CAT[k]].map(([v,x])=>`<option value="${esc(v)}">${esc(x.lab||'')}</option>`).join('');
+function drawRows(ev,t){
+  const ro=!canEdit();
+  buildCat();
+  $('#edb').innerHTML=t.rows.map((r,i)=>{
+    const d=ro?'disabled':'';
+    return `<tr class="${r.k==='G'?'g':''}" data-i="${i}">
+     <td class="c-pos"><input type="text" data-f="p" value="${esc(r.p)}" ${d}></td>
+     <td class="c-book"><select data-f="b" ${d}>${['','SR','Adoremus','Heft','Blatt','Zettel','OM'].map(x=>`<option value="${x}" ${r.b===x?'selected':''}>${x||'–'}</option>`).join('')}</select></td>
+     <td class="c-nr"><input type="text" data-f="n" value="${esc(r.n)}" ${d}></td>
+     <td class="c-v"><input type="text" data-f="v" value="${esc(r.v)}" ${d}></td>
+     <td class="c-t"><input type="text" data-f="t" value="${esc(r.t)}" ${r.k==='O'?'':'list="cat'+(r.k==='G'?'G':'L')+'" placeholder="Katalog durchsuchen oder frei eintippen"'} ${d}></td>
+     <td class="c-k"><select data-f="k" ${d}><option value="L" ${r.k==='L'?'selected':''}>Lied</option><option value="G" ${r.k==='G'?'selected':''}>Schola</option><option value="O" ${r.k==='O'?'selected':''}>Orgel/Stille</option></select></td>
+     ${canOrgan()?`<td class="c-o"><input type="text" data-f="o" value="${esc(r.o)}" placeholder="Hinweis" ${d}></td>`:''}
+     <td class="c-x">${ro?'':`<button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button>`}</td></tr>`;
+  }).join('')||`<tr><td colspan="8" class="muted" style="padding:10px">Keine Zeilen. Vorlage laden oder Zeile hinzufügen.</td></tr>`;
+  let dl=document.getElementById('catdl'); if(!dl){dl=document.createElement('div');dl.id='catdl';document.body.appendChild(dl)}
+  dl.innerHTML=`<datalist id="catG">${catOpts('G')}</datalist><datalist id="catL">${catOpts('L')}</datalist>`;
+}
+
+const POSS=['Introitus','Graduale/Alleluia','Offertorium','Communio','Einzug','Sonstiges'];
+function regCard(ev,t){
+  if(!ev.c) return '';
+  const as=assignedTo(ev.c), dr=dropped(ev.c), ro=!canEdit();
+  const inPlan=r=>t.rows.some(x=>x.k==='G'&&(sameT(x.t,r.name)||sameT(x.t,r.orig)));
+  const inf=t.regInfo||{add:[],del:[]};
+  const list=as.map(r=>`<li>${esc(r.name)} <span class="muted small">· ${esc(chantPos(r))}</span> ${inPlan(r)?'<span class="pill ok">im Plan</span>':(ro?'<span class="pill warn">nicht im Plan</span>':`<button class="btn sm" data-add="${esc(r.key)}">+ in Plan</button>`)}</li>`).join('');
+  const names=REG().filter(r=>!r.hide&&/^Schola/.test(r.art)).map(r=>r.name);
+  return `<div class="card"><h3>Gesänge für «${esc(ev.c)}»</h3>
+   <p class="small muted" style="margin:4px 0 8px">Im Register diesem Fest zugeordnete Gesänge werden bei neuen Plänen (Vorschlag, Vorlage laden) automatisch eingesetzt.</p>
+   ${inf.add.length||inf.del.length?`<p class="note small" style="margin:0 0 8px">Aus dem Register angepasst: ${inf.add.length?'eingesetzt: '+esc(inf.add.join(', ')):''}${inf.add.length&&inf.del.length?' · ':''}${inf.del.length?'entfernt: '+esc(inf.del.join(', ')):''}</p>`:''}
+   ${list?`<ul class="small" style="margin:0 0 8px;padding-left:18px">${list}</ul>`:'<p class="small muted">Noch keine Gesänge fest zugeordnet.</p>'}
+   ${dr.length?`<p class="small muted">Bewusst nicht mehr zugeordnet: ${esc(dr.map(r=>r.name).join(', '))}</p>`:''}
+   ${ro?'':`<div class="fields" style="align-items:end"><label style="grid-column:span 2"><span>Gesang diesem Fest zuordnen</span><input type="text" id="rcn" list="rcl" placeholder="Incipit wählen oder tippen"><datalist id="rcl">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label><label><span>Position</span><select id="rcp">${POSS.map(x=>`<option ${x==='Communio'?'selected':''}>${x}</option>`).join('')}</select></label></div><button class="btn sm" id="rca" style="margin-top:6px">Zuordnen + in Plan einsetzen</button>`}
+  </div>`}
+function previewHTML(ev,t){
+  const sch=S.prev==='schola'&&canSchola();
+  const reg=sch?REG():[];
+  const rows=t.rows.filter(r=>r.t||r.n||r.k==='O');
+  let h=`<div class="paper">${sch?'<div class="intern">Intern · Scholaplan</div>':''}<h3>${esc(ev.n)}</h3><div class="sub">${wdOf(ev.d)}, ${fmtD(ev.d)}${t.sch&&t.sch!=='keine'?' · Schola: '+esc(t.sch):''}</div>`;
+  if(!rows.length) return h+'<p class="sub">Noch keine Zeilen.</p></div>';
+  h+='<table>';
+  rows.forEach(r=>{
+    if(sch&&r.k==='L'&&!/Kyrie|Gloria|Credo|Sanctus|Agnus|Asperges|Vidi|Introit|Graduale|Communio|Offert/i.test(r.p)) {}
+    let extra='';
+    if(sch&&isChant(r)){
+      const c=lookupChant(r,reg);
+      const lk=[];
+      if(c&&c.cn) lk.push(lnkHtml(lnkStr(linksFor(c.cn,r.p)),'Choralnoten'));
+      if(c&&c.yt) lk.push(lnkHtml(c.yt,'YouTube'));
+      if(c) lk.push(`<a href="${esc(ntUrl(c.name,c,r.p))}" target="_blank" rel="noopener">Notator</a>`);
+      if(!c) lk.push('<span style="color:#a8322d">nicht im Register</span>');
+      else if(!c.cn&&!c.yt) lk.push('<span style="color:#888">Links fehlen</span>');
+      extra=`<span class="lk">${lk.join('')}</span>`;
+      if(S.organ&&canOrgan()){
+        if(c&&c.on) extra+=`<span class="org">${lnkHtml(lnkStr(linksFor(c.on,r.p)),'Organistennoten')}</span>`;
+      }
+    }
+    if(sch&&S.organ&&canOrgan()&&r.o) extra+=`<span class="org">Orgel: ${esc(r.o)}</span>`;
+    h+=`<tr><td class="p">${esc(r.p)}</td><td class="n">${esc(rowNr(r))}</td><td>${esc(rowTitle(r))}${extra}</td></tr>`;
+  });
+  return h+'</table></div>';
+}
+function ask(title,text,btns){return new Promise(res=>{
+  const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:520px;width:100%;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
+  b.innerHTML='<h3 style="margin:0 0 8px">'+esc(title)+'</h3><p class="small" style="margin:0 0 14px">'+esc(text)+'</p>';
+  const w=document.createElement('div');w.style.cssText='display:flex;flex-direction:column;gap:8px';
+  btns.forEach(x=>{const e=document.createElement('button');e.className='btn'+(x.pri?' pri':'');e.textContent=x.t;e.style.textAlign='left';e.onclick=()=>{o.remove();res(x.k)};w.appendChild(e)});
+  b.appendChild(w);o.appendChild(b);o.onclick=ev=>{if(ev.target===o){o.remove();res('no')}};document.body.appendChild(o);});}
+function bindTermin(){
+  const ev=S.sel&&evByKey[S.sel];
+  if(!ev){
+    const a=$('#fadd'); if(a) a.onclick=()=>{
+      const d=$('#fd').value,n=$('#fn').value.trim(); if(!d||!n){toast('Datum und Bezeichnung eingeben');return}
+      const e={d,n,a:'Sonderanlass',c:null,note:'',kj:S.kj,key:d+'|'+n,i:EV.length};
+      EV.push(e);evByKey[e.key]=e;S.sel=e.key;render();
+    };
+    return;
+  }
+  let t=getTermin(ev);
+  const commit=()=>{if(canEdit()){if(t.rows.length){t.vars=t.vars||{};t.vars[t.sch]={rows:JSON.parse(JSON.stringify(t.rows)),tpl:t.tpl||''}}setTermin(ev,t)}};
+  drawRows(ev,t); const pv=()=>{$('#prev').innerHTML=previewHTML(ev,t);$('#abg').innerHTML=abgCard(ev,t)}; pv();
+  $('#back').onclick=()=>{S.tab='kj';render()};
+  const sch=$('#sch'); if(sch){sch.onchange=async e=>{
+      const to=e.target.value, from=t.sch; if(to===from) return;
+      t.vars=t.vars||{};
+      if(t.rows.length) t.vars[from]={rows:JSON.parse(JSON.stringify(t.rows)),tpl:t.tpl||''};
+      const load=(v,msg)=>{t.sch=to;t.schaSet=true;t.rows=JSON.parse(JSON.stringify(v.rows));t.tpl=v.tpl||'';if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();render();toast(msg)};
+      if(t.vars[to]&&t.vars[to].rows&&t.vars[to].rows.length){load(t.vars[to],'Version «'+to+'» geladen');return}
+      if(!t.rows.length||to==='keine'){t.sch=to;t.schaSet=true;commit();pv();return}
+      const arch=bestPlans(ev.c,to).filter(p=>p.s===to)[0];
+      const ordRows=t.rows.filter(r=>/^(Asperges|Kyrie|Gloria|Credo|Sanctus|Agnus|Ite)/i.test(r.p||''));
+      const btns=[{k:'new',t:'Neue Version «'+to+'» anlegen'+(to==='Frauen'?' (Asperges + Messordinarium)':' (Kopie)'),pri:1}];
+      if(arch) btns.push({k:'arch',t:'Archiv-Vorlage «'+to+'» laden: '+planLabel(arch)});
+      btns.push({k:'same',t:'Nur Schola umstellen (gleiche Zeilen)'},{k:'no',t:'Abbrechen'});
+      const a=await ask('Neue Version für «'+to+'»?','Für «'+to+'» ist bei diesem Termin noch keine eigene Version abgelegt. Die Version «'+from+'» bleibt erhalten und lässt sich jederzeit über das Schola-Feld wieder wählen.',btns);
+      if(a==='new'){const rows=(to==='Frauen'&&ordRows.length)?ordRows:t.rows;load({rows,tpl:t.tpl},'Neue Version «'+to+'» angelegt');}
+      else if(a==='arch'){t.sch=to;t.schaSet=true;applyTemplate(ev,t,arch.id);commit();render();toast('Archiv-Vorlage «'+to+'» geladen')}
+      else if(a==='same'){t.sch=to;t.schaSet=true;commit();render();toast('Schola umgestellt')}
+      else{e.target.value=from}
+    };
+    $('#st').onchange=e=>{t.status=e.target.value;commit()};
+    $('#tpl').onchange=e=>{
+      const v=e.target.value; if(!v) return;
+      if(v.startsWith('c:')){const c=v.slice(2);const l=bestPlans(c,t.sch);if(!l.length){toast('Kein Plan zu diesem Festtyp');return}
+        const o=$('#tpl');o.innerHTML=`<optgroup label="${esc(c)}">${l.map(p=>`<option value="${p.id}">${esc(planLabel(p))}</option>`).join('')}</optgroup>`;toast('Jetzt Plan wählen');return}
+      if(t.rows.length&&!t._ok){t._ok=true;toast('Vorhandene Zeilen werden ersetzt. Nochmals wählen zum Bestätigen.');e.target.value='';return}
+      t._ok=false;applyTemplate(ev,t,v);commit();render();toast('Vorlage geladen');
+    };
+    const tn=$('#tnote'); if(tn) tn.oninput=e=>{t.note=e.target.value;commit()};
+    $('#addrow').onclick=()=>{t.rows.push({p:'',b:'SR',n:'',v:'',t:'',k:'L',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
+    $('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
+    $('#edb').oninput=e=>{const tr=e.target.closest('tr');if(!tr||!e.target.dataset.f)return;const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();pv()};
+    $('#edb').onchange=e=>{if(e.target.dataset.f==='t'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const x=(CAT[r.k]||new Map()).get(e.target.value);if(x){r.t=x.t;if(r.k!=='G'){r.b=x.b;r.n=x.n;r.v=''}commit();drawRows(ev,t);pv()}return}if(e.target.dataset.f==='k'||e.target.dataset.f==='b'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;commit();drawRows(ev,t);pv()}};
+    $('#edb').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=+b.closest('tr').dataset.i;
+      if(b.dataset.a==='del')t.rows.splice(i,1);
+      if(b.dataset.a==='up'&&i>0)[t.rows[i-1],t.rows[i]]=[t.rows[i],t.rows[i-1]];
+      if(b.dataset.a==='dn'&&i<t.rows.length-1)[t.rows[i+1],t.rows[i]]=[t.rows[i],t.rows[i+1]];
+      commit();drawRows(ev,t);pv()};
+  }
+
+  const drawRegc=()=>{const e=$('#regc');if(e)e.innerHTML=regCard(ev,t)};drawRegc();
+  const regc=$('#regc'); if(regc){
+    regc.onclick=e=>{const b=e.target.closest('[data-add]');if(!b)return;const r=REG().find(x=>x.key===b.dataset.add);if(!r)return;
+      insertChant(t.rows,r);if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();drawRegc()};
+    regc.onchange=e=>{};
+    regc.addEventListener('click',e=>{if(e.target.id!=='rca')return;const nm=$('#rcn').value.trim(),po=$('#rcp').value;if(!nm){toast('Gesang wählen');return}
+      const r=REG().find(x=>!x.hide&&(x.name===nm||x.orig===nm));if(!r){toast('Nicht im Register – zuerst im Reiter «Gesänge» anlegen');return}
+      const o=S.reg[r.key]=S.reg[r.key]||{};const fe=(Array.isArray(o.fe)?o.fe:r.fe0).slice();if(!fe.includes(ev.c))fe.push(ev.c);o.fe=fe;if(po!==chantPos(r)||!r.po)o.po=po;
+      save();regPut(r.key);for(const k in AUTO)delete AUTO[k];
+      const r2=REG().find(x=>x.key===r.key);insertChant(t.rows,r2);if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();drawRegc();toast('«'+r.name+'» ist jetzt «'+ev.c+'» zugeordnet')})}
+  document.querySelectorAll('[data-prev]').forEach(b=>b.onclick=()=>{S.prev=b.dataset.prev;render()});
+  const og=$('#organ'); if(og) og.onchange=e=>{S.organ=e.target.checked;pv()};
+  $('#copy').onclick=async()=>{const tx=planText(ev,t);try{await navigator.clipboard.writeText(tx);toast('Liederplan kopiert')}catch(e){const ta=document.createElement('textarea');ta.value=tx;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Liederplan kopiert')}catch(_){toast('Kopieren nicht möglich')}ta.remove()}};
+  $('#pdf').onclick=()=>makePdf(ev,t,S.prev==='schola'&&canSchola());
+}
+
+/* --- Abgleich Vorschlag / tatsächlicher Plan --- */
+const pkey=p=>norm(p).replace(/^lied /,'').replace(/^zum /,'').replace(/^zur /,'');
+const sig=r=>r.k==='O'?(r.t&&!/^orgel/i.test(r.t)?'o:'+norm(r.t).slice(0,16):'orgel'):r.k==='G'?'g:'+norm(r.t).slice(0,18):((r.b||'SR')+' '+norm(r.n||r.t)).trim();
+const show=r=>r?((rowNr(r)+' '+rowTitle(r)).trim()||'–'):'–';
+function cmpRows(cur,prop){
+  const a=cur.filter(r=>r.t||r.n||r.k==='O'), b=prop.filter(r=>r.t||r.n||r.k==='O'); const used=new Set(); const out=[]; let same=0;
+  a.forEach(r=>{
+    let j=b.findIndex((x,i)=>!used.has(i)&&pkey(x.p)===pkey(r.p));
+    if(j<0) j=b.findIndex((x,i)=>!used.has(i)&&sig(x)===sig(r)&&sig(r)!=='orgel');
+    if(j<0){out.push({p:r.p,a:r,b:null,st:'fehlt'});return}
+    used.add(j); const ok=sig(b[j])===sig(r); if(ok)same++;
+    out.push({p:r.p,a:r,b:b[j],st:ok?'gleich':'anders'});
+  });
+  b.forEach((x,i)=>{if(!used.has(i))out.push({p:x.p,a:null,b:x,st:'nur Vorschlag'})});
+  return {same,total:a.length,out,score:a.length?same/a.length:0};
+}
+function abgCard(ev,t){
+  const pp=ev.pid&&planById[ev.pid]; if(!pp||t.src==='vorschlag'||!t.rows.length) return '';
+  const c=cmpRows(t.rows,pp.r.map(rowFromArr));
+  const rows=c.out.filter(x=>x.st!=='gleich');
+  return `<div class="card" style="margin-top:14px"><h3>Abgleich mit Vorschlag</h3>
+   <p class="small">${c.same} von ${c.total} Positionen stimmen überein (${Math.round(c.score*100)} %). Vorschlag: <a href="https://drive.google.com/file/d/${pp.id}/view" target="_blank" rel="noopener">${esc(planLabel(pp))}</a></p>
+   ${rows.length?`<div class="tw"><table><thead><tr><th>Position</th><th>Dein Plan</th><th>Vorschlag</th></tr></thead><tbody>${rows.map(x=>`<tr><td class="small">${esc(x.p)}</td><td class="small">${x.a?esc(show(x.a)):'<span class="muted">–</span>'}</td><td class="small">${x.b?esc(show(x.b)):'<span class="muted">–</span>'}</td></tr>`).join('')}</tbody></table></div>`:'<p class="small">Keine Abweichungen.</p>'}</div>`;
+}
+function abgData(){
+  return EV.filter(e=>e.kj==='2025/26'&&e.pid).map(e=>{
+    const t=getTermin(e); if(t.src==='vorschlag'||!t.rows.length) return null;
+    const c=cmpRows(t.rows,planById[e.pid].r.map(rowFromArr)); return {e,c,t};
+  }).filter(Boolean);
+}
+function viewAbg(){
+  const l=abgData(); const tot=l.reduce((s,x)=>s+x.c.total,0), same=l.reduce((s,x)=>s+x.c.same,0);
+  const open=EV.filter(e=>e.kj==='2025/26'&&e.pid&&getTermin(e).src==='vorschlag'&&e.d>=new Date().toISOString().slice(0,10)).length;
+  return `<div class="card"><h2>Abgleich Kirchenjahr 2025/26</h2>
+   <p class="small">Der Vorschlag wurde nur aus Plänen vor dem 30.11.2025 gebildet (Vorjahr bevorzugt, Männerschola, Standard-Variante). Verglichen wird mit dem tatsächlichen Plan: bei vergangenen Terminen aus dem Archiv (Zuordnung über Datum bzw. Änderungsdatum der Datei, deshalb nur ein Teil der Termine), bei den kommenden Wochen mit dem Plan, den du im Reiter «Termin» erfasst.</p>
+   <p><b>${l.length}</b> Termine verglichen · <b>${tot?Math.round(same/tot*100):0} %</b> der Positionen identisch (${same} von ${tot}) · ${open} kommende Termine noch ohne eigenen Plan</p></div>
+   <div class="tw" style="margin-top:14px"><table><thead><tr><th>Datum</th><th>Fest</th><th class="num">Treffer</th><th class="num">Positionen</th><th></th></tr></thead><tbody>
+   ${l.sort((a,b)=>a.e.d.localeCompare(b.e.d)).map(x=>`<tr class="row-ev" tabindex="0" data-key="${esc(x.e.key)}" style="--lc:${lcolor(x.e)}"><td class="num">${fmtD(x.e.d)}</td><td><span class="sw"></span>${esc(x.e.n)}</td><td class="num">${Math.round(x.c.score*100)} %</td><td class="num">${x.c.same} / ${x.c.total}</td><td class="small muted">${x.t.src==='archiv'?'Archiv':'erfasst'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">Noch keine vergleichbaren Termine.</td></tr>'}
+   </tbody></table></div>`;
+}
+function bindAbg(){const open=el=>{const tr=el.closest('tr.row-ev');if(tr){S.sel=tr.dataset.key;S.tab='termin';render();scrollTo(0,0)}};
+  const tb=document.querySelector('#view tbody');tb.onclick=e=>open(e.target);tb.onkeydown=e=>{if(e.key==='Enter')open(e.target)}}
+
+/* --- PDF --- */
+function lat(s){return String(s==null?'':s).normalize('NFC').replace(/[‘’´`]/g,"'").replace(/[“”„]/g,'"').replace(/[–—]/g,'-').replace(/[^\u0000-ÿ]/g,c=>{const b=c.normalize('NFD').replace(/[̀-ͯ]/g,'');return /^[\u0000-ÿ]*$/.test(b)?b:'?'})}
+async function makePdf(ev,t,intern){
+  if(!window.jspdf){toast('PDF-Bibliothek nicht geladen');return}
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+  const W=210,M=18; let y=24;
+  const reg=intern?REG():[];
+  const pageBreak=n=>{if(y+n>280){doc.addPage();y=22}};
+  if(intern){doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(168,50,45);doc.text('INTERN - SCHOLAPLAN',M,y-8);}
+  doc.setTextColor(20);doc.setFont('times','bold');doc.setFontSize(20);doc.text(lat(ev.n),M,y);y+=8;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(90);
+  doc.text(lat(`${wdOf(ev.d)}, ${fmtD(ev.d)}${t.sch&&t.sch!=='keine'?'   |   Schola: '+t.sch:''}   |   St. Pelagiberg`),M,y);y+=9;
+  doc.setDrawColor(180);doc.line(M,y-3,W-M,y-3);
+  const rows=t.rows.filter(r=>r.t||r.n||r.k==='O');
+  rows.forEach(r=>{
+    const title=lat(rowTitle(r)); const nr=lat(rowNr(r));
+    const lines=doc.setFont('times','normal').setFontSize(12).splitTextToSize(title,W-M-M-62);
+    const c=intern&&isChant(r)?lookupChant(r,reg):null;
+    const extra=[];
+    if(intern&&isChant(r)){ if(c&&c.cn)linksFor(c.cn,r.p).forEach((x,i,a)=>extra.push([x.l||(a.length>1?'Choralnoten '+(i+1):'Choralnoten'),x.u]));if(c)extra.push(['Notator',ntUrl(c.name,c,r.p)]); if(c&&c.yt)parseLinks(c.yt).forEach(x=>extra.push([x.l||'YouTube',x.u])); if(S.organ&&canOrgan()&&c&&c.on)linksFor(c.on,r.p).forEach((x,i,a)=>extra.push([x.l||'Organistennoten',x.u]));}
+    const orgn=intern&&S.organ&&canOrgan()&&r.o;
+    pageBreak(lines.length*5.5+extra.length*0+(orgn?5:0)+6);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(100);doc.text(lat(r.p).toUpperCase().slice(0,22),M,y);
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(20);doc.text(nr,M+38,y);
+    doc.setFont('times','normal');doc.setFontSize(12);doc.text(lines,M+62,y);
+    y+=lines.length*5.2;
+    if(extra.length){let x=M+62;doc.setFont('helvetica','normal');doc.setFontSize(9);
+      extra.forEach(([l,u])=>{doc.setTextColor(28,60,156);doc.textWithLink(l,x,y,{url:u});x+=doc.getTextWidth(l)+6});y+=4.5;}
+    if(intern&&r.k==='G'&&!c){doc.setFont('helvetica','italic');doc.setFontSize(9);doc.setTextColor(168,50,45);doc.text('nicht im Register',M+62,y);y+=4.5}
+    if(orgn){doc.setFont('helvetica','italic');doc.setFontSize(9);doc.setTextColor(106,63,158);doc.text(lat('Orgel: '+r.o),M+62,y);y+=4.5}
+    y+=2.2;
+  });
+  const name=lat(`${intern?'Scholaplan':'Liederplan'} ${ev.d} ${ev.n}`).replace(/[^\w\- .]+/g,'').replace(/\s+/g,'_')+'.pdf';
+  const buf=doc.output('arraybuffer');
+  try{doc.save(name);toast('PDF gespeichert')}catch(e){toast('PDF konnte nicht gespeichert werden')}
+}
+
+/* --- Gesänge (Choral) --- */
+const GCOLS=[{l:'Art'},{l:'Nr.',num:true},{l:'Bezeichnung / Incipit',nodl:true},{l:'Einsätze',num:true},{l:'zuletzt',num:true},{l:'Choralnoten',link:true},{l:'YouTube',link:true},{l:'Organistennoten',link:true},{l:'Dublette?',nofilter:true,nosort:true}];
+const gcols=()=>canOrgan()?GCOLS:GCOLS.filter(c=>c.l!=='Organistennoten');
+function viewGes(){
+  const arts=[...new Set(D.chants.map(c=>c[0]))];
+  return `<div class="tools"><label>Suche<input type="search" id="rq" value="${esc(S.rq)}" placeholder="Incipit, Nr."></label>
+   <label>Art<select id="rart"><option value="">alle</option>${arts.map(a=>`<option ${S.rart===a?'selected':''}>${esc(a)}</option>`).join('')}</select></label>
+   <label class="chk"><input type="checkbox" id="rdup" ${S.rdup?'checked':''}> nur ähnliche / doppelte</label>
+   <label class="chk"><input type="checkbox" id="rhid" ${S.rhid?'checked':''}> gelöschte zeigen</label>
+   ${canEdit()?'<button class="btn" id="radd">+ Eintrag</button> <button class="btn" id="rsync" title="Liest die Notator-Ablage in Google Drive und verknüpft passende Dateien mit den Gesängen">☁ Drive abgleichen</button>':''}<span class="count" id="rc"></span></div>
+   <div class="tw"><table><thead id="rh"></thead><tbody id="rl"></tbody></table></div>
+   <p class="hint">Bezeichnung und Nr. sind direkt änderbar (Schreibweise korrigieren); der ursprüngliche Eintrag wird darunter angezeigt und weiter für die Zuordnung zu den Plänen verwendet. Doppelte oder falsche Einträge mit «löschen» entfernen (direkt «Rückgängig» möglich; über «gelöschte zeigen» jederzeit wiederherstellbar). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. YouTube-Links erscheinen nur im Scholaplan. Änderungen werden im gemeinsamen Speicher abgelegt.</p>`;
+}
+function gget(r){return [r.art,r.nr,r.name+' '+r.po+' '+r.fe.join(' '),r.cnt,r.last,r.cn||'',r.yt||'',r.on||'']}
+function drawGesHead(){const cs=gcols();$('#rh').innerHTML=tblHead(cs,S.gst,S.gfl,'g',tblVals(REG().filter(r=>S.rhid||!r.hide),gget,cs))}
+function drawGes(){
+  const q=norm(S.rq); let all=REG();
+  const nk=r=>norm(r.name).replace(/ (maennerschola|schola|frauenschola)$/,'').slice(0,14);
+  const cn={},cr={};all.forEach(r=>{if(r.hide)return;const k=nk(r);if(k)cn[k]=(cn[k]||0)+1;if(r.nr)cr[r.nr]=(cr[r.nr]||0)+1});
+  const isDup=r=>!r.hide&&((nk(r)&&cn[nk(r)]>1)||(r.nr&&cr[r.nr]>1));
+  let base=all.filter(r=>(S.rhid||!r.hide)&&(!S.rart||r.art===S.rart)&&(!q||norm(r.name+' '+r.orig+' '+r.nr+' '+r.po+' '+r.fe.join(' ')).includes(q))&&(!S.rdup||isDup(r)));
+  const cols=gcols(); let l=tblApply(base,gget,cols,S.gst,S.gfl);
+  if(S.rdup&&S.gst.c<0) l=l.slice().sort((a,b)=>(a.nr&&cr[a.nr]>1?a.nr:nk(a)).localeCompare(b.nr&&cr[b.nr]>1?b.nr:nk(b),'de',{numeric:true}));
+  const ro=!canEdit(); const show=l.slice(0,400);
+  $('#rl').innerHTML=show.map(r=>{
+    const LAB={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten'};
+    const f=(k)=>ro?(r[k]?lnkHtml(r[k],'Link'):'<span class="muted">–</span>'):`<div class="lkv small">${lnkHtml(r[k],LAB[k])}</div><button class="btn sm" data-lk="${esc(r.key)}" data-f="${k}" title="Links bearbeiten">${r[k]?'✎ bearbeiten':'＋ Link'}</button>`;
+    const chg=r.name!==r.orig||r.nr!==r.onr;
+    const ed=(k,v,w)=>ro?esc(v):`<input class="cell-in" style="min-width:${w}px" type="text" data-k="${esc(r.key)}" data-f="${k}" value="${esc(v)}">`;
+    return `<tr class="${r.hide?'hid':''}${isDup(r)?' dup':''}"><td class="small muted">${esc(r.art)}</td><td class="num">${ed('nr',r.nr,70)}</td><td>${ed('nm',r.name,220)}<div class="small muted">${ntBlock(r)}${ro?'':` <button class="btn sm" data-nt="${esc(r.key)}" title="Notator-Datei aus Google Drive manuell verknüpfen">🔗 Datei</button>`} · ${chg?'urspr.: '+esc(stripCnt(r.orig))+(r.nr!==r.onr?' ('+esc(r.onr||'ohne Nr.')+')':'')+' · ':''}${esc(r.po)}${r.fe.length||r.fx?' · <span title="Feste, an denen der Gesang vorgesehen ist">Feste:</span> '+(r.fe.length?r.fe.map(x=>'<span class="pill">'+esc(x)+'</span>').join(' '):'<span class="muted">keine</span>')+(r.fx?' <span class="pill ok" title="manuell festgelegt – fliesst in neue Pläne ein">angepasst</span>':''):''}${ro?'':` <button class="btn sm" data-fe="${esc(r.key)}" title="Position und Feste bearbeiten">✎ Feste</button>`}</div></td><td class="num">${esc(r.cnt)}</td><td class="num">${esc(r.last)}</td><td>${f('cn')}</td><td>${f('yt')}</td>${canOrgan()?`<td>${f('on')}</td>`:''}<td class="small">${isDup(r)?'<span class="pill warn">ähnlich</span> ':''}<label class="chk"><input type="checkbox" data-k="${esc(r.key)}" data-f="hide" ${r.hide?'checked':''}> ${r.hide?'gelöscht – wiederherstellen':'löschen'}</label></td></tr>`}).join('')||`<tr><td colspan="9" class="muted">Keine Treffer.</td></tr>`;
+  $('#rc').textContent=l.length+' Einträge'+(l.length>400?' (erste 400)':'');
+}
+
+
+
+function ntBlock(r){const l=ntParse(r.nt);
+  const tip='In Notator öffnen (vorhandene Version aus Drive, sonst GregoBase-Suche)';
+  if(l.some(x=>x.l)) return 'Notator: '+l.map(x=>`<a href="${esc(ntLink(r.name,x))}" target="_blank" rel="noopener" title="${tip}">${esc(x.l||'Datei')} ↗</a>`).join(' · ')+` <span class="pill ok" title="verknüpfte Notator-Dateien">${l.length>1?'Dateien':'Datei'} verknüpft</span>`;
+  return `<a href="${esc(ntUrl(r.name,r))}" target="_blank" rel="noopener" title="${tip}">Notator ↗</a>`+(l.length?' <span class="pill ok" title="verknüpfte Notator-Datei">Datei verknüpft</span>':'')}
+function linkNt(key){
+  const r=REG().find(x=>x.key===key); if(!r) return;
+  const o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:520px;width:100%;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
+  b.innerHTML=`<h3 style="margin:0 0 4px">Notator-Datei verknüpfen</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>Google-Drive-Link (Teilen-Link) oder Datei-ID der .notator-Datei einfügen. Bei mehreren Teilen (Messe): «Kyrie|Link ; Gloria|Link ; …».</p>
+   <input type="text" id="ntv" value="${esc(r.nt||'')}" placeholder="https://drive.google.com/file/d/…/view">
+   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn pri" id="nts">Speichern</button><button class="btn" id="ntc">Abbrechen</button>${r.nt?'<button class="btn" id="ntr">Verknüpfung entfernen</button>':''}</div>`;
+  o.appendChild(b);document.body.appendChild(o);$('#ntv').focus();
+  const done=()=>o.remove(); $('#ntc').onclick=done; o.onclick=e=>{if(e.target===o)done()};
+  const put=v=>{const ob=S.reg[key]=S.reg[key]||{};ob.nt=v;save();regPut(key);done();drawGes()};
+  $('#nts').onclick=()=>{const v=$('#ntv').value.trim();if(!v){toast('Link einfügen');return}if(!ntParse(v).length||v.split(/\s*;\s*/).filter(Boolean).length!==ntParse(v).length){toast('Kein gültiger Drive-Link');return}put(v);toast('Notator-Datei verknüpft')};
+  const nr=$('#ntr'); if(nr) nr.onclick=()=>{put('');toast('Verknüpfung entfernt')};
+}
+
+function editLinks(key,f){
+  const r=REG().find(x=>x.key===key); if(!r) return;
+  const lab={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten'}[f];
+  let rows=parseLinks(r[f]).map(x=>({l:x.l,u:x.u})); if(!rows.length) rows=[{l:'',u:''}];
+  const o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:620px;width:100%;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
+  b.innerHTML=`<h3 style="margin:0 0 4px">${esc(lab)}</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>Titel (optional) und Link. Leerer Titel = «${esc(lab)}».</p><div id="lkr" style="overflow:auto;flex:1"></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="lka">＋ Weiterer Link</button><span style="flex:1"></span><button class="btn pri" id="lks">Speichern</button><button class="btn" id="lkc">Abbrechen</button></div>`;
+  o.appendChild(b);document.body.appendChild(o);
+  const draw=()=>{$('#lkr').innerHTML=rows.map((x,i)=>`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><input type="text" data-i="${i}" data-p="l" value="${esc(x.l)}" placeholder="Titel / Bezeichnung" style="flex:1;min-width:130px"><input type="text" data-i="${i}" data-p="u" value="${esc(x.u)}" placeholder="https://…" style="flex:2;min-width:180px"><button class="btn sm" data-d="${i}" title="Link löschen">🗑</button></div>`).join('')||'<p class="muted small">Keine Links.</p>'};
+  draw();
+  const first=$('#lkr input[data-p="u"]'); if(first) first.focus();
+  $('#lkr').oninput=e=>{const i=e.target.dataset.i;if(i!=null)rows[+i][e.target.dataset.p]=e.target.value};
+  $('#lkr').onclick=e=>{const d=e.target.closest('[data-d]');if(d){rows.splice(+d.dataset.d,1);draw()}};
+  $('#lka').onclick=()=>{rows.push({l:'',u:''});draw();const ins=document.querySelectorAll('#lkr input[data-p="u"]');ins[ins.length-1].focus()};
+  const done=()=>o.remove(); $('#lkc').onclick=done; o.onclick=e=>{if(e.target===o)done()};
+  $('#lks').onclick=()=>{
+    const out=[]; for(const x of rows){const u=x.u.trim(),l=x.l.trim().replace(/[;|]/g,' ');if(!u&&!l)continue;if(!/^https?:\/\/\S+$/i.test(u)){toast('Link muss mit http:// oder https:// beginnen');return}out.push((l?l+'|':'')+u.replace(/;/g,'%3B'))}
+    const ob=S.reg[key]=S.reg[key]||{}; ob[f]=out.length?out.join(' ; '):'-'; save();regPut(key);for(const k in AUTO)delete AUTO[k];done();drawGes();toast(out.length?'Links gespeichert':'Links gelöscht')};
+}
+function editFeste(key){
+  const r=REG().find(x=>x.key===key); if(!r) return;
+  const sel=new Set(r.fe); const o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:560px;width:100%;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
+  b.innerHTML=`<h3 style="margin:0 0 4px">${esc(r.name)}</h3><p class="small muted" style="margin:0 0 10px">Position und Feste festlegen. Der Gesang wird dann bei diesen Festen automatisch in neue Liederpläne eingesetzt (ersetzt dort den Gesang an gleicher Position oder wird ergänzt).</p>
+   <label class="small"><span>Position</span><select id="fp">${[...new Set([r.po,...POSS].filter(Boolean))].map(x=>`<option ${x===r.po?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
+   <input type="text" id="fq" placeholder="Feste filtern…" style="margin:10px 0 6px">
+   <div id="fl" style="overflow:auto;flex:1;min-height:120px;border:1px solid #8883;border-radius:6px;padding:6px"></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn pri" id="fs">Speichern</button><button class="btn" id="fc">Abbrechen</button>${r.fx?'<button class="btn" id="fr">Auf Archiv-Vorgabe zurücksetzen</button>':''}</div>`;
+  o.appendChild(b);document.body.appendChild(o);
+  const draw=()=>{const q=norm($('#fq').value);const l=CANONS.filter(c=>!q||norm(c).includes(q)).sort((a,c)=>(sel.has(c)?0:1)-(sel.has(a)?0:1)||0);
+    $('#fl').innerHTML=l.map(c=>`<label class="chk" style="display:block;padding:2px 0"><input type="checkbox" data-c="${esc(c)}" ${sel.has(c)?'checked':''}> ${esc(c)}${r.fe0.includes(c)?' <span class="muted small">(Archiv)</span>':''}</label>`).join('')||'<span class="muted">Keine Treffer</span>'};
+  draw();
+  $('#fq').oninput=draw;
+  $('#fl').onchange=e=>{const c=e.target.dataset.c;if(!c)return;e.target.checked?sel.add(c):sel.delete(c)};
+  const done=()=>{o.remove()};
+  $('#fc').onclick=done; o.onclick=e=>{if(e.target===o)done()};
+  $('#fs').onclick=()=>{const ob=S.reg[key]=S.reg[key]||{};ob.fe=CANONS.filter(c=>sel.has(c));const po=$('#fp').value;ob.po=po===r.po0?'':po;save();regPut(key);for(const k in AUTO)delete AUTO[k];done();drawGes();toast('Feste gespeichert – gilt für neue Pläne')};
+  const fr=$('#fr'); if(fr) fr.onclick=()=>{const ob=S.reg[key]||{};delete ob.fe;delete ob.po;save();regPut(key);for(const k in AUTO)delete AUTO[k];done();drawGes();toast('Zurückgesetzt')};
+}
+
+/* ---------- Abgleich Notator-Dateien (Google Drive) -> Register ---------- */
+const NT_FOLDER='144wHwMFQUFhNxcpun6CO9fXtewhFcLe3', PDF_FOLDER='1r8NqXs4D9bS_ZZf3lnwX5lFygIZm3Uhk';
+const TYPE_LAB={nt:'Notator',cn:'Choral-PDF',on:'Orgel-PDF'};
+const pdfType=t=>{const m=/^(.*?)[\s_(]*(choral|orgel)\)?\s*\.pdf$/i.exec(t||'');return m?{base:m[1].replace(/[\s_]+$/,''),type:/^c/i.test(m[2])?'cn':'on'}:null};
+const linksStr=l=>l.map(x=>(x.l?x.l.replace(/[;|]/g,' ')+'|':'')+x.u.replace(/;/g,'%3B')).join(' ; ');
+const fileUrl=id=>'https://drive.google.com/file/d/'+id+'/view';
+const wordsOf=x=>norm(String(x||'').replace(/\.notator$/i,'').replace(/\(.*?\)/g,' ')).split(' ').filter(Boolean);
+const bigrams=s=>{s=' '+s+' ';const m=new Map();for(let i=0;i<s.length-1;i++){const g=s.slice(i,i+2);m.set(g,(m.get(g)||0)+1)}return m};
+function simScore(a,b){ /* a,b: normalisierte Wortlisten -> 0..1 */
+  const sa=a.join(' '),sb=b.join(' '); if(!sa||!sb) return 0; if(sa===sb) return 1;
+  const A=bigrams(sa),B=bigrams(sb); let inter=0,na=0,nb=0;A.forEach((v,k)=>{na+=v;if(B.has(k))inter+=Math.min(v,B.get(k))});B.forEach(v=>nb+=v);
+  const dice=2*inter/(na+nb);
+  const shared=a.filter(x=>b.includes(x)).length; const cont=shared/Math.min(a.length,b.length), jac=shared/new Set([...a,...b]).size;
+  const sub=(a.every(x=>b.includes(x))||b.every(x=>a.includes(x)))?0.9:0;
+  return Math.max(dice,sub,(cont+jac)/2*0.95)}
+function matchDriveFiles(files){
+  const reg=REG().filter(r=>!r.hide);
+  return files.map(f=>{
+    const fw=wordsOf(f.base!=null?f.base:f.title), ft=fw.join(' '); const sr=/SR\s*(\d+)/i.exec(f.title);
+    const pm=/^(.*?)\s+[–-]\s+(.+)$/.exec(f.base!=null?f.base:f.title); f.part=pm?pm[2].trim():'';
+    let kind='', c=reg.filter(r=>wordsOf(r.name).join(' ')===ft||wordsOf(r.orig).join(' ')===ft); if(c.length) kind='exakt';
+    if(!c.length&&f.part){const bw=wordsOf(pm[1]).join(' ');c=reg.filter(r=>wordsOf(r.name).join(' ')===bw||wordsOf(r.orig).join(' ')===bw);const o=c.filter(r=>/^Ordinarium/.test(r.art));if(o.length)c=o;if(c.length) kind='exakt (Teil)'}
+    if(!c.length&&sr){c=reg.filter(r=>r.nr==='SR '+sr[1]);if(c.length) kind='SR-Nr.'}
+    c=c.slice(0,8);
+    let sim=[];
+    if(!c.length&&fw.length){sim=reg.map(r=>({r,s:Math.max(simScore(fw,wordsOf(r.name)),simScore(fw,wordsOf(r.orig)))})).filter(x=>x.s>=0.5).sort((a,b)=>b.s-a.s).slice(0,8)}
+    const linked=reg.find(r=>[r.nt,r.cn,r.on].some(v=>v&&String(v).includes(f.id)));
+    return {f,c,kind,sim,linked}});
+}
+async function driveSync(){
+  if(!GD.cached()){toast('Bitte zuerst oben mit Google anmelden');return}
+  const nfix=persistNorm(); toast((nfix?nfix+' Einträge bereinigt – ':'')+'Lese Notator- und PDF-Ablage in Google Drive …');
+  let files=[];
+  try{
+    for(const [folder,q,type] of [[NT_FOLDER,"name contains '.notator'",'nt'],[PDF_FOLDER,"mimeType = 'application/pdf'",'pdf']]){
+      let tok;
+      for(let i=0;i<20;i++){
+        const u='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({q:"'"+folder+"' in parents and trashed=false and "+q,pageSize:'100',fields:'nextPageToken,files(id,name)',...(tok?{pageToken:tok}:{})});
+        const p=await (await GD.fetch(u,{},true)).json();
+        (p.files||[]).forEach(f=>{const T=f.name||'';
+          if(type==='nt'){if(/\.notator$/i.test(T))files.push({id:f.id,title:T,base:T.replace(/\.notator$/i,''),type:'nt'})}
+          else{const pt=pdfType(T);if(pt)files.push({id:f.id,title:T,base:pt.base,type:pt.type})}});
+        tok=p.nextPageToken; if(!tok) break}}
+  }catch(e){
+    toast('Drive-Abgleich fehlgeschlagen: '+(e&&e.message||e));return}
+  const rows=matchDriveFiles(files);
+  const o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:800px;width:100%;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
+  const todo=rows.filter(r=>!r.linked), done=rows.length-todo.length;
+  todo.sort((a,b)=>String(a.f.base).replace(/\s+[–-]\s+.*$/,'').localeCompare(String(b.f.base).replace(/\s+[–-]\s+.*$/,''))||partRank(a.f.part)-partRank(b.f.part));
+  const exact=todo.filter(r=>r.c.length), simil=todo.filter(r=>!r.c.length);
+  const simHit=simil.filter(r=>r.sim.length), simNone=simil.filter(r=>!r.sim.length);
+  b.innerHTML=`<h3 style="margin:0 0 4px">Dateien in Google Drive (Notator, Choral-PDF, Orgel-PDF)</h3><p class="small muted" style="margin:0 0 8px">${rows.length} Dateien gefunden${done?', '+done+' bereits verknüpft':''}. Vorschläge prüfen und übernehmen.</p>
+   <div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn pri" id="dst1">Genaue Treffer (${exact.length})</button><button class="btn" id="dst2">Ähnliche Treffer (${simHit.length})</button></div>
+   <div id="dsl" style="overflow:auto;flex:1;border:1px solid #8883;border-radius:6px;padding:6px"></div><div id="dsl2" style="overflow:auto;flex:1;border:1px solid #8883;border-radius:6px;padding:6px;display:none"></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn pri" id="dsok">Ausgewählte verknüpfen</button><button class="btn" id="dsx">Schliessen</button></div>`;
+  o.appendChild(b);document.body.appendChild(o);
+  const rowH=(r,i,g,opts)=>`<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #8882;flex-wrap:wrap"><input type="checkbox" data-g="${g}" data-i="${i}" ${opts.pre?'checked':''}><span style="flex:1;min-width:180px">${esc(r.f.title)}</span><select data-g="${g}" data-s="${i}" style="max-width:320px"><option value="">– nicht zuordnen –</option>${opts.items.map((c,j)=>`<option value="${j}" ${j===0?'selected':''}>${esc(c.name)}${c.nr?' ('+esc(c.nr)+')':''}${c.art?' · '+esc(String(c.art).replace(/ \(.*\)$/,'')):''}${c.pct?' · '+c.pct+' %':''}${c.nt?' · hat schon Link':''}</option>`).join('')}</select><span class="small muted">${esc(TYPE_LAB[r.f.type])} · ${esc(opts.tag)}</span></div>`;
+  $('#dsl').innerHTML=exact.map((r,i)=>rowH(r,i,'e',{pre:r.c.length===1,items:r.c,tag:r.kind})).join('')||'<p class="muted">Keine genauen Treffer (mehr).</p>';
+  $('#dsl2').innerHTML='<p class="small muted" style="margin:0 0 6px">Dateinamen mit leichten Abweichungen – nichts vorangekreuzt, bitte einzeln prüfen.</p>'+(simHit.map((r,i)=>rowH(r,i,'s',{pre:false,items:r.sim.map(x=>Object.assign({},x.r,{pct:Math.round(x.s*100)})),tag:'ähnlich'})).join('')||'<p class="muted">Keine ähnlichen Treffer.</p>')+(simNone.length?`<p class="small muted" style="margin-top:10px">Ohne Vorschlag (manuell verknüpfen: Notator über «🔗 Datei», PDF über «✎ bearbeiten» bei den Links): ${simNone.map(r=>esc(r.f.title)).join(', ')}</p>`:'');
+  const tab=n=>{$('#dsl').style.display=n===1?'':'none';$('#dsl2').style.display=n===2?'':'none';$('#dst1').className='btn'+(n===1?' pri':'');$('#dst2').className='btn'+(n===2?' pri':'')};
+  $('#dst1').onclick=()=>tab(1);$('#dst2').onclick=()=>tab(2);
+  $('#dsx').onclick=()=>o.remove();o.onclick=e=>{if(e.target===o)o.remove()};
+  b.onchange=e=>{const s=e.target.dataset.s;if(s!=null){const cb=b.querySelector('input[data-g="'+e.target.dataset.g+'"][data-i="'+s+'"]');if(cb)cb.checked=!!e.target.value}};
+  $('#dsok').onclick=()=>{let n=0;
+    [['e',exact,r=>r.c],['s',simHit,r=>r.sim.map(x=>x.r)]].forEach(([g,list,get])=>list.forEach((r,i)=>{const cb=b.querySelector('input[data-g="'+g+'"][data-i="'+i+'"]'),sel=b.querySelector('select[data-g="'+g+'"][data-s="'+i+'"]');if(!cb||!cb.checked||!sel.value)return;
+      const c=get(r)[+sel.value];const ob=S.reg[c.key]=S.reg[c.key]||{};const T=r.f.type;
+        const cur=REG().find(x=>x.key===c.key), pt=r.f.part||'';
+        if(T==='nt'){if(pt){const l=ntParse(cur.nt).filter(x=>x.l);if(!l.some(x=>ntMid(x.u)===r.f.id))l.push({l:pt,u:fileUrl(r.f.id)});ob.nt=ntStr(sortParts(l))}else ob.nt=fileUrl(r.f.id)}
+        else{const l=parseLinks(cur[T]||'');if(!l.some(x=>x.u.includes(r.f.id))){l.push({l:pt,u:fileUrl(r.f.id)});ob[T]=lnkStr(sortParts(l))}}
+        save();regPut(c.key);for(const k in AUTO)delete AUTO[k];n++}));
+    o.remove();drawGes();toast(n+' Datei'+(n===1?'':'en')+' verknüpft')};
+}
+function bindGes(){
+  drawGesHead();drawGes();
+  $('#rq').oninput=e=>{S.rq=e.target.value;drawGes()};
+  $('#rart').onchange=e=>{S.rart=e.target.value;drawGes()};
+  $('#rdup').onchange=e=>{S.rdup=e.target.checked;drawGes()};
+  $('#rhid').onchange=e=>{S.rhid=e.target.checked;drawGes()};
+  tblBind($('#rh'),S.gst,S.gfl,drawGes,drawGesHead);
+  $('#rl').oninput=e=>{const k=e.target.dataset.k;if(!k||e.target.dataset.f==='hide')return;S.reg[k]=S.reg[k]||{};const f=e.target.dataset.f;S.reg[k][f]=e.target.value.trim();if(f==='nr')S.reg[k].nrs=true;const lv=e.target.parentNode.querySelector('.lkv');if(lv)lv.innerHTML=lnkHtml(e.target.value,lv.dataset.lab);save();regPut(k)};
+  $('#rl').onclick=e=>{const b=e.target.closest('[data-fe]');if(b)editFeste(b.dataset.fe);const n=e.target.closest('[data-nt]');if(n)linkNt(n.dataset.nt);const lk=e.target.closest('[data-lk]');if(lk&&!e.target.closest('a'))editLinks(lk.dataset.lk,lk.dataset.f)};
+  $('#rl').onchange=e=>{const k=e.target.dataset.k;if(!k)return;if(e.target.dataset.f==='hide'){S.reg[k]=S.reg[k]||{};const on=e.target.checked;S.reg[k].hide=on;save();regPut(k);drawGes();if(on)toast('Eintrag gelöscht',()=>{S.reg[k].hide=false;save();regPut(k);drawGes()})}else if(e.target.dataset.f==='nm'||e.target.dataset.f==='nr')drawGes()};
+  const sy=$('#rsync'); if(sy) sy.onclick=driveSync;
+  const a=$('#radd'); if(a) a.onclick=()=>{const name=$('#rq').value.trim();if(!name){toast('Incipit ins Suchfeld schreiben, dann «+ Eintrag»');return}
+    {const c={art:S.rart||'Schola-Gesang (Proprium/Choral)',nr:'',name};S.custom.push(c);dbPut('eigene',regKey(c.art,'',c.name),{art:c.art,nr:'',name:c.name})}save();toast('Eintrag angelegt');drawGes()};
+}
+
+/* --- Liederbuch --- */
+const LCOLS=[{l:'Buch'},{l:'Nr.',num:true},{l:'Titel',nodl:true},{l:'Bereich'},{l:'Einsätze',num:true},{l:'zuletzt',num:true}];
+function viewLB(){
+  const books=[...new Set(D.hym.map(h=>h[0]))];
+  return `<div class="tools"><label>Buch<select id="hbook"><option value="">alle</option>${books.map(b=>`<option ${S.hbook===b?'selected':''} value="${esc(b)}">${esc(b)==='SR'?'SR (Salve Regina)':esc(b)}</option>`).join('')}</select></label>
+   <label>Bereich<select id="hber"><option value="">alle</option>${[...new Set(D.hym.filter(h=>h[0]==='SR').map(h=>h[3]))].sort().map(b=>`<option ${S.hber===b?'selected':''}>${esc(b)}</option>`).join('')}</select></label>
+   <label>Suche<input type="search" id="hq" value="${esc(S.hq)}" placeholder="Titel oder Nr."></label><span class="count" id="hc"></span></div>
+   <div class="tw"><table><thead id="hh"></thead><tbody id="hl"></tbody></table></div>
+   <p class="hint">Standard ist das Salve Regina (SR): Nr. 1–80 Gebete und Andachten, 90–405 Lieder fürs Volk, 410–500 Gregorianische Gesänge (meist Schola, teils Volk bzw. im Wechsel). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. Keine YouTube-Links im Liederbuch-Register.</p>`;
+}
+function drawLBHead(){$('#hh').innerHTML=tblHead(LCOLS,S.lst,S.lfl,'l',tblVals(D.hym,h=>[h[0],h[1],h[2],h[3],h[4],h[5]],LCOLS))}
+function drawLB(){
+  const q=norm(S.hq);
+  const base=D.hym.filter(h=>(!S.hbook||h[0]===S.hbook)&&(!S.hber||h[3]===S.hber)&&(!q||norm(h[1]+' '+h[2]).includes(q)));
+  let l=tblApply(base,h=>[h[0],h[1],h[2],h[3],h[4],h[5]],LCOLS,S.lst,S.lfl);
+  if(S.lst.c<0) l=l.slice().sort((a,b)=>a[0].localeCompare(b[0])||numKey(a[1])-numKey(b[1]));
+  $('#hl').innerHTML=l.slice(0,500).map(h=>`<tr><td><span class="bk">${esc(h[0])}</span></td><td class="num">${esc(h[1])}</td><td>${esc(h[2])}</td><td class="small muted">${esc(h[3])}</td><td class="num">${esc(h[4])}</td><td class="num">${esc(h[5]==='0'?'':h[5])}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Keine Treffer.</td></tr>';
+  $('#hc').textContent=l.length+' Einträge'+(l.length>500?' (erste 500)':'');
+}
+function bindLB(){drawLBHead();drawLB();tblBind($('#hh'),S.lst,S.lfl,drawLB,drawLBHead);
+  $('#hbook').onchange=e=>{S.hbook=e.target.value;const sr=!S.hbook||S.hbook==='SR';if(!sr)S.hber='';$('#hber').value=S.hber;$('#hber').disabled=!sr;drawLB()};$('#hber').disabled=!(!S.hbook||S.hbook==='SR');
+  $('#hq').oninput=e=>{S.hq=e.target.value;drawLB()};$('#hber').onchange=e=>{S.hber=e.target.value;drawLB()}}
+
+/* --- Planarchiv --- */
+function viewArch(){
+  return `<div class="tools"><label>Suche<input type="search" id="aq" value="${esc(S.aq)}" placeholder="Festtyp, Titel, Jahr"></label><span class="count" id="ac"></span></div>
+  <div class="tw"><table><thead><tr><th>Festtyp</th><th>Plan</th><th>Jahr</th><th>Schola</th><th>Zeilen</th><th></th></tr></thead><tbody id="al"></tbody></table></div>
+  <p class="hint">Alle ausgewerteten Pläne aus dem Archiv. «Als Vorlage» legt den Plan auf den aktuell gewählten Termin.</p>`;
+}
+function drawArch(){
+  const q=norm(S.aq); const l=D.plans.filter(p=>!q||norm(p.c+' '+p.t+' '+p.y+' '+p.v).includes(q)).sort((a,b)=>a.c.localeCompare(b.c,'de')||(b.y||0)-(a.y||0));
+  $('#al').innerHTML=l.slice(0,400).map(p=>`<tr><td>${esc(p.c)}</td><td class="small">${esc(p.t)}</td><td class="num">${esc(p.y||'')}</td><td class="small">${esc(p.s)}</td><td class="num">${p.r.length}</td><td><a href="https://drive.google.com/file/d/${p.id}/view" target="_blank" rel="noopener" class="small">Drive</a>${S.sel&&canEdit()?` <button class="btn sm" data-p="${p.id}">Als Vorlage</button>`:''}</td></tr>`).join('');
+  $('#ac').textContent=l.length+' Pläne';
+}
+function bindArch(){drawArch();$('#aq').oninput=e=>{S.aq=e.target.value;drawArch()};
+  $('#al').onclick=e=>{const b=e.target.closest('button[data-p]');if(!b)return;const ev=evByKey[S.sel];const t=getTermin(ev);applyTemplate(ev,t,b.dataset.p);setTermin(ev,t);S.tab='termin';render();toast('Vorlage geladen')}}
+
+/* --- Daten & Hilfe --- */
+function viewDaten(){
+  const nT=Object.keys(S.termine).length;
+  const unsure=EV.filter(e=>/UNSICHER/.test(e.note));
+  return `<div class="grid2"><div>
+   <div class="card"><h2>Stand</h2><p class="small">Datenbank-Stand ${fmtD(D.stand)}: ${D.plans.length} Pläne, ${EV.length} Termine (Kirchenjahr 2026/27 und 2027/28), ${D.chants.length} Choralgesänge, ${D.hym.length} Liederbuch-Nummern.</p>
+     <p class="small">In diesem Browser gespeichert: ${nT} bearbeitete Termine, ${Object.keys(S.reg).length} Register-Einträge, ${S.custom.length} eigene Gesänge.</p>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="exp">Eigene Änderungen exportieren (JSON)</button>
+     <label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
+     <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
+   <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
+  </div><div>
+   <div class="card"><h2>So funktioniert es</h2>
+    <p class="small"><b>Kirchenjahr</b>: alle Termine mit Farbstreifen der liturgischen Farbe. Klick öffnet den Termin.</p>
+    <p class="small"><b>Termin</b>: Vorlage aus dem Archiv laden, Zeilen anpassen. Rechts die Vorschau: <i>Liederplan</i> (öffentlich, ohne Links) oder <i>Scholaplan</i> (mit Choralnoten und YouTube, optional Orgelnoten). PDF und Text-Export.</p>
+    <p class="small"><b>Gesänge (Choral)</b>: Register der liturgischen Gesänge. Hier pflegst du Links zu Choralnoten, YouTube und Organistennoten. Sie erscheinen im Scholaplan, wenn der Titel passt.</p>
+    <p class="small"><b>Liederbuch</b>: alle Nummern aus den Plänen, Standard Salve Regina.</p>
+   </div>
+   <div class="card"><h2>Bekannte Lücken</h2><p class="small">Einige Pläne (Maiandachten, Hochzeiten, Requiem, Jugend, Mariä Opferung, 7 Schmerzen) waren als .odt nicht lesbar. Die Zuordnung der Vorlage zum Fest ist automatisch und kann abweichen. Liturgische Farbe ist eine Näherung. Daten der lokalen Feste sind teils unbestätigt.</p></div>
+  </div></div>`;
+}
+function bindDaten(){
+  $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
+    try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
+  $('#imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);
+    Object.assign(S.termine,j.termine||{});Object.assign(S.reg,j.reg||{});
+    (j.custom||[]).forEach(c=>{if(!S.custom.some(x=>x.art===c.art&&x.name===c.name&&x.nr===c.nr))S.custom.push(c)});
+    save();Object.keys(j.termine||{}).forEach(k=>dbPut('termine',k));Object.keys(j.reg||{}).forEach(k=>dbPut('register',k));if((j.custom||[]).length)dbPut('eigene','*');toast('Importiert');render()}catch(err){toast('Datei nicht lesbar')}};r.readAsText(f)};
+}
+
+/* --- Start --- */
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){S.tab=b.dataset.tab;render();scrollTo(0,0)}});
+// Beispielstart: nächster Termin ab heute
+(function(){const today=new Date().toISOString().slice(0,10);const nx=EV.find(e=>e.d>=today&&e.a==='Sonntag')||EV[0];S.kj=nx.kj;S.sel=nx.key;S.tab='kj'})();
+render();
+initDb();
