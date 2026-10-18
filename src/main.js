@@ -454,14 +454,14 @@ function previewHTML(ev,t){
     if(sch&&isChant(r)){
       const c=lookupChant(r,reg);
       const lk=[];
-      if(c&&c.cn) lk.push(lnkHtml(lnkStr(linksFor(c.cn,r.p)),'Choralnoten'));
+      if(c&&c.cn) lk.push(lnkHtml(lnkStr(linksFor(c.cn,r.p)),'Choral'));
       if(c&&c.yt) lk.push(lnkHtml(c.yt,'YouTube'));
       if(c) lk.push(`<a href="${esc(ntUrl(c.name,c,r.p))}" target="_blank" rel="noopener">Notator</a>`);
       if(!c) lk.push('<span style="color:#a8322d">nicht im Register</span>');
       else if(!c.cn&&!c.yt) lk.push('<span style="color:#888">Links fehlen</span>');
       extra=`<span class="lk">${lk.join('')}</span>`;
       if(S.organ&&canOrgan()){
-        if(c&&c.on) extra+=`<span class="org">${lnkHtml(lnkStr(linksFor(c.on,r.p)),'Organistennoten')}</span>`;
+        if(c&&c.on) extra+=`<span class="org">${lnkHtml(lnkStr(linksFor(c.on,r.p)),'Orgel')}</span>`;
       }
     }
     if(sch&&S.organ&&canOrgan()&&r.o) extra+=`<span class="org">Orgel: ${esc(r.o)}</span>`;
@@ -609,7 +609,7 @@ async function makePdf(ev,t,intern){
     const lines=doc.setFont('times','normal').setFontSize(12).splitTextToSize(title,W-M-M-62);
     const c=intern&&isChant(r)?lookupChant(r,reg):null;
     const extra=[];
-    if(intern&&isChant(r)){ if(c&&c.cn)linksFor(c.cn,r.p).forEach((x,i,a)=>extra.push([x.l||(a.length>1?'Choralnoten '+(i+1):'Choralnoten'),x.u]));if(c)extra.push(['Notator',ntUrl(c.name,c,r.p)]); if(c&&c.yt)parseLinks(c.yt).forEach(x=>extra.push([x.l||'YouTube',x.u])); if(S.organ&&canOrgan()&&c&&c.on)linksFor(c.on,r.p).forEach((x,i,a)=>extra.push([x.l||'Organistennoten',x.u]));}
+    if(intern&&isChant(r)){ if(c&&c.cn)linksFor(c.cn,r.p).forEach((x,i,a)=>extra.push([x.l||(a.length>1?'Choral '+(i+1):'Choral'),x.u]));if(c)extra.push(['Notator',ntUrl(c.name,c,r.p)]); if(c&&c.yt)parseLinks(c.yt).forEach(x=>extra.push([x.l||'YouTube',x.u])); if(S.organ&&canOrgan()&&c&&c.on)linksFor(c.on,r.p).forEach((x,i,a)=>extra.push([x.l||'Orgel',x.u]));}
     const orgn=intern&&S.organ&&canOrgan()&&r.o;
     pageBreak(lines.length*5.5+extra.length*0+(orgn?5:0)+6);
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(100);doc.text(lat(r.p).toUpperCase().slice(0,22),M,y);
@@ -652,7 +652,7 @@ function drawGes(){
   if(S.rdup&&S.gst.c<0) l=l.slice().sort((a,b)=>(a.nr&&cr[a.nr]>1?a.nr:nk(a)).localeCompare(b.nr&&cr[b.nr]>1?b.nr:nk(b),'de',{numeric:true}));
   const ro=!canEdit(); const show=l.slice(0,400);
   $('#rl').innerHTML=show.map(r=>{
-    const LAB={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten'};
+    const LAB={cn:'Choral',yt:'YouTube',on:'Orgel'};
     const f=(k)=>ro?(r[k]?lnkHtml(r[k],'Link'):'<span class="muted">–</span>'):`<div class="lkv small">${lnkHtml(r[k],LAB[k])}</div><button class="btn sm" data-lk="${esc(r.key)}" data-f="${k}" title="Links bearbeiten">${r[k]?'✎ bearbeiten':'＋ Link'}</button>`;
     const chg=r.name!==r.orig||r.nr!==r.onr;
     const ed=(k,v,w)=>ro?esc(v):`<input class="cell-in" style="min-width:${w}px" type="text" data-k="${esc(r.key)}" data-f="${k}" value="${esc(v)}">`;
@@ -734,12 +734,12 @@ function drivePicker(){
 }
 function editLinks(key,f){
   const r=REG().find(x=>x.key===key); if(!r) return;
-  const lab={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten'}[f];
+  const lab={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten'}[f], dlab={cn:'Choral',yt:'YouTube',on:'Orgel'}[f];
   let rows=parseLinks(r[f]).map(x=>({l:x.l,u:x.u})); if(!rows.length) rows=[{l:'',u:''}];
   const o=document.createElement('div');
   o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:620px;width:100%;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
-  b.innerHTML=`<h3 style="margin:0 0 4px">${esc(lab)}</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>Titel (optional) und Link. Leerer Titel = «${esc(lab)}».</p><div id="lkr" style="overflow:auto;flex:1"></div>
+  b.innerHTML=`<h3 style="margin:0 0 4px">${esc(lab)}</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>Titel (optional) und Link. Leerer Titel = «${esc(dlab)}».</p><div id="lkr" style="overflow:auto;flex:1"></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="lka">＋ Weiterer Link</button><span style="flex:1"></span><button class="btn pri" id="lks">Speichern</button><button class="btn" id="lkc">Abbrechen</button></div>`;
   o.appendChild(b);document.body.appendChild(o);
   const draw=()=>{$('#lkr').innerHTML=rows.map((x,i)=>`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><input type="text" data-i="${i}" data-p="l" value="${esc(x.l)}" placeholder="Titel / Bezeichnung" style="flex:1;min-width:130px"><input type="text" data-i="${i}" data-p="u" value="${esc(x.u)}" placeholder="https://…" style="flex:2;min-width:180px">${f==='yt'?'':`<button class="btn sm" data-p="${i}" title="Datei in Google Drive suchen oder auswählen">📁 Drive</button>`}<button class="btn sm" data-d="${i}" title="Link löschen">🗑</button></div>`).join('')||'<p class="muted small">Keine Links.</p>'};
