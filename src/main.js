@@ -637,7 +637,7 @@ function viewGes(){
    <label class="chk"><input type="checkbox" id="rdup" ${S.rdup?'checked':''}> nur ähnliche / doppelte</label>
    <label class="chk"><input type="checkbox" id="rhid" ${S.rhid?'checked':''}> gelöschte zeigen</label>
    ${canEdit()?'<button class="btn" id="radd">+ Eintrag</button> <button class="btn" id="rsync" title="Liest die Notator-Ablage in Google Drive und verknüpft passende Dateien mit den Gesängen">☁ Drive abgleichen</button>':''}<span class="count" id="rc"></span></div>
-   <div class="tw"><table><thead id="rh"></thead><tbody id="rl"></tbody></table></div>
+   <div class="tw stk"><table><thead id="rh"></thead><tbody id="rl"></tbody></table></div>
    <p class="hint">Bezeichnung und Nr. sind direkt änderbar (Schreibweise korrigieren); der ursprüngliche Eintrag wird darunter angezeigt und weiter für die Zuordnung zu den Plänen verwendet. Doppelte oder falsche Einträge mit «löschen» entfernen (direkt «Rückgängig» möglich; über «gelöschte zeigen» jederzeit wiederherstellbar). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. YouTube-Links erscheinen nur im Scholaplan. Änderungen werden im gemeinsamen Speicher abgelegt.</p>`;
 }
 function gget(r){return [r.art,r.nr,r.name+' '+r.po+' '+r.fe.join(' '),r.cnt,r.last,r.cn||'',r.yt||'',r.on||'']}
@@ -681,6 +681,57 @@ function linkNt(key){
   const nr=$('#ntr'); if(nr) nr.onclick=()=>{put('');toast('Verknüpfung entfernt')};
 }
 
+/* Datei aus Google Drive wählen: Suche nach Dateinamen oder Durchblättern der Ordner */
+function drivePicker(){
+  return new Promise(async res=>{
+    try{await GD.token(true)}catch(e){toast(String(e&&e.message||e));res(null);return}
+    const o=document.createElement('div');
+    o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px';
+    const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:640px;width:100%;height:min(80vh,640px);display:flex;flex-direction:column;border-radius:10px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.35);border:1px solid #8884';
+    b.innerHTML=`<h3 style="margin:0 0 8px">Datei aus Google Drive wählen</h3>
+     <div style="display:flex;gap:6px;margin-bottom:8px"><input type="text" id="dpq" placeholder="Nach Dateinamen suchen …" style="flex:1"><button class="btn" id="dps">Suchen</button></div>
+     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm" data-go="${NT_FOLDER}|Notator-Ordner">Notator-Ordner</button><button class="btn sm" data-go="${PDF_FOLDER}|Choral-/Orgel-PDFs">PDF-Ordner</button><button class="btn sm" data-go="root|Mein Drive">Mein Drive</button><button class="btn sm" data-go="shared|Mit mir geteilt">Mit mir geteilt</button></div>
+     <div id="dpb" class="small muted" style="margin-bottom:6px"></div>
+     <div id="dpl" style="flex:1;overflow:auto;border:1px solid #8883;border-radius:6px"></div>
+     <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn" id="dpc">Abbrechen</button></div>`;
+    o.appendChild(b);document.body.appendChild(o);
+    const Q=x=>String(x).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const FOLDER='application/vnd.google-apps.folder';
+    let stack=[{id:NT_FOLDER,name:'Notator-Ordner'}],mode='browse',query='',tok=null,items=[],busyL=false,gen=0;
+    const close=v=>{o.remove();res(v)};
+    const crumb=()=>{$('#dpb').innerHTML=mode==='search'?'Suche: «'+esc(query)+'»':stack.map((x,i)=>`<a href="#" data-b="${i}">${esc(x.name)}</a>`).join(' › ')};
+    const draw=()=>{
+      $('#dpl').innerHTML=(items.map((f,i)=>`<div data-i="${i}" tabindex="0" style="display:flex;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid #8882;cursor:pointer"><span>${f.mimeType===FOLDER?'📁':'📄'}</span><span style="flex:1;overflow-wrap:anywhere">${esc(f.name)}</span><span class="muted small">${f.mimeType===FOLDER?'':esc((f.modifiedTime||'').slice(0,10))}</span></div>`).join('')||'<p class="muted small" style="padding:10px">Keine Einträge.</p>')+(tok?'<div style="padding:8px"><button class="btn sm" id="dpm">Mehr laden</button></div>':'');
+    };
+    async function load(more){
+      if(busyL)return;busyL=true;const my=++gen;
+      if(!more){items=[];tok=null;$('#dpl').innerHTML='<p class="muted small" style="padding:10px">Lade …</p>'}
+      let q;
+      if(mode==='search'){q="trashed=false and mimeType != '"+FOLDER+"' and "+query.split(/\s+/).filter(Boolean).map(w=>"name contains '"+Q(w)+"'").join(' and ')}
+      else{const cur=stack[stack.length-1].id;q=cur==='shared'?'sharedWithMe=true and trashed=false':"'"+Q(cur)+"' in parents and trashed=false"}
+      try{
+        const u='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({q,pageSize:'100',fields:'nextPageToken,files(id,name,mimeType,modifiedTime)',orderBy:mode==='search'?'modifiedTime desc':'folder,name',supportsAllDrives:'true',includeItemsFromAllDrives:'true',...(more&&tok?{pageToken:tok}:{})});
+        const j=await (await GD.fetch(u,{},true)).json();
+        if(my!==gen)return;
+        items=items.concat(j.files||[]);tok=j.nextPageToken||null;
+        if(mode==='browse'&&stack[stack.length-1].id==='shared')items.sort((a,c)=>(c.mimeType===FOLDER)-(a.mimeType===FOLDER)||a.name.localeCompare(c.name,'de'));
+        draw();
+      }catch(e){if(my===gen)$('#dpl').innerHTML='<p class="small" style="padding:10px;color:var(--warn)">'+esc(e&&e.message||e)+'</p>'}
+      busyL=false;crumb();
+    }
+    const enter=(id,name)=>{mode='browse';stack.push({id,name});load()};
+    b.onclick=e=>{
+      const go=e.target.closest('[data-go]');if(go){const [id,name]=go.dataset.go.split('|');mode='browse';stack=[{id,name}];busyL=false;load();return}
+      const bc=e.target.closest('[data-b]');if(bc){e.preventDefault();stack=stack.slice(0,+bc.dataset.b+1);mode='browse';busyL=false;load();return}
+      if(e.target.id==='dpm'){load(true);return}
+      const it=e.target.closest('[data-i]');if(it){const f=items[+it.dataset.i];if(f.mimeType===FOLDER){busyL=false;enter(f.id,f.name)}else close({id:f.id,name:f.name,url:fileUrl(f.id)})}};
+    b.onkeydown=e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.i!=null)e.target.click()};
+    const doSearch=()=>{const v=$('#dpq').value.trim();if(!v){mode='browse';busyL=false;load();return}mode='search';query=v;busyL=false;load()};
+    $('#dps').onclick=doSearch;$('#dpq').onkeydown=e=>{if(e.key==='Enter')doSearch()};
+    $('#dpc').onclick=()=>close(null);o.onclick=e=>{if(e.target===o)close(null)};
+    $('#dpq').focus();load();
+  });
+}
 function editLinks(key,f){
   const r=REG().find(x=>x.key===key); if(!r) return;
   const lab={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten'}[f];
@@ -691,11 +742,12 @@ function editLinks(key,f){
   b.innerHTML=`<h3 style="margin:0 0 4px">${esc(lab)}</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>Titel (optional) und Link. Leerer Titel = «${esc(lab)}».</p><div id="lkr" style="overflow:auto;flex:1"></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="lka">＋ Weiterer Link</button><span style="flex:1"></span><button class="btn pri" id="lks">Speichern</button><button class="btn" id="lkc">Abbrechen</button></div>`;
   o.appendChild(b);document.body.appendChild(o);
-  const draw=()=>{$('#lkr').innerHTML=rows.map((x,i)=>`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><input type="text" data-i="${i}" data-p="l" value="${esc(x.l)}" placeholder="Titel / Bezeichnung" style="flex:1;min-width:130px"><input type="text" data-i="${i}" data-p="u" value="${esc(x.u)}" placeholder="https://…" style="flex:2;min-width:180px"><button class="btn sm" data-d="${i}" title="Link löschen">🗑</button></div>`).join('')||'<p class="muted small">Keine Links.</p>'};
+  const draw=()=>{$('#lkr').innerHTML=rows.map((x,i)=>`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><input type="text" data-i="${i}" data-p="l" value="${esc(x.l)}" placeholder="Titel / Bezeichnung" style="flex:1;min-width:130px"><input type="text" data-i="${i}" data-p="u" value="${esc(x.u)}" placeholder="https://…" style="flex:2;min-width:180px">${f==='yt'?'':`<button class="btn sm" data-p="${i}" title="Datei in Google Drive suchen oder auswählen">📁 Drive</button>`}<button class="btn sm" data-d="${i}" title="Link löschen">🗑</button></div>`).join('')||'<p class="muted small">Keine Links.</p>'};
   draw();
   const first=$('#lkr input[data-p="u"]'); if(first) first.focus();
   $('#lkr').oninput=e=>{const i=e.target.dataset.i;if(i!=null)rows[+i][e.target.dataset.p]=e.target.value};
-  $('#lkr').onclick=e=>{const d=e.target.closest('[data-d]');if(d){rows.splice(+d.dataset.d,1);draw()}};
+  $('#lkr').onclick=async e=>{const d=e.target.closest('[data-d]');if(d){rows.splice(+d.dataset.d,1);draw();return}
+    const p=e.target.closest('[data-p]');if(p){const i=+p.dataset.p;const f=await drivePicker();if(f&&rows[i]){rows[i].u=f.url;draw()}}};
   $('#lka').onclick=()=>{rows.push({l:'',u:''});draw();const ins=document.querySelectorAll('#lkr input[data-p="u"]');ins[ins.length-1].focus()};
   const done=()=>o.remove(); $('#lkc').onclick=done; o.onclick=e=>{if(e.target===o)done()};
   $('#lks').onclick=()=>{
@@ -820,7 +872,7 @@ function viewLB(){
   return `<div class="tools"><label>Buch<select id="hbook"><option value="">alle</option>${books.map(b=>`<option ${S.hbook===b?'selected':''} value="${esc(b)}">${esc(b)==='SR'?'SR (Salve Regina)':esc(b)}</option>`).join('')}</select></label>
    <label>Bereich<select id="hber"><option value="">alle</option>${[...new Set(D.hym.filter(h=>h[0]==='SR').map(h=>h[3]))].sort().map(b=>`<option ${S.hber===b?'selected':''}>${esc(b)}</option>`).join('')}</select></label>
    <label>Suche<input type="search" id="hq" value="${esc(S.hq)}" placeholder="Titel oder Nr."></label><span class="count" id="hc"></span></div>
-   <div class="tw"><table><thead id="hh"></thead><tbody id="hl"></tbody></table></div>
+   <div class="tw stk"><table><thead id="hh"></thead><tbody id="hl"></tbody></table></div>
    <p class="hint">Standard ist das Salve Regina (SR): Nr. 1–80 Gebete und Andachten, 90–405 Lieder fürs Volk, 410–500 Gregorianische Gesänge (meist Schola, teils Volk bzw. im Wechsel). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. Keine YouTube-Links im Liederbuch-Register.</p>`;
 }
 function drawLBHead(){$('#hh').innerHTML=tblHead(LCOLS,S.lst,S.lfl,'l',tblVals(D.hym,h=>[h[0],h[1],h[2],h[3],h[4],h[5]],LCOLS))}
