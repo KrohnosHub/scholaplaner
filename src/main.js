@@ -13,7 +13,8 @@ const S={tab:'kj',kj:'2026/27',q:'',art:'',status:'',unsure:false,sel:null,role:
   termine:LS.get('sp.termine',{}),reg:LS.get('sp.reg',{}),custom:LS.get('sp.custom',[]),
   month:String(new Date().getMonth()+1),prev:'lieder',organ:true,rq:'',rart:'',hq:'',hbook:'SR',hber:'',gst:{c:-1,d:1},gfl:[],lst:{c:-1,d:1},lfl:[],rhid:false,rdup:false,aq:'',aart:''};
 const save=()=>{LS.set('sp.termine',S.termine);LS.set('sp.reg',S.reg);LS.set('sp.custom',S.custom)};
-const canEdit=()=>true,canSchola=()=>true,canOrgan=()=>true;
+let READONLY=LS.get('sp.ro',false);
+const canEdit=()=>!READONLY,canSchola=()=>true,canOrgan=()=>true;
 /* ---------- Speicher: JSON-Datei in Google Drive (Notator-Ordner) ---------- */
 const ZNAME='Schola-Planer-Zustand.json', BNAME='Schola-Planer-Basis.json';
 let ZID=null, flushT=null, flushing=false;
@@ -21,8 +22,9 @@ const dirty=new Set(LS.get('sp.dirty',[]));
 const busy=()=>{const a=document.activeElement;return a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)};
 function dlText(name,text,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 function setSync(t,bad,login){const e=$('#sync');if(!e)return;e.innerHTML=(bad?`<span style="color:var(--warn)">${esc(t)}</span>`:t)+(login?` <button class="btn sm" data-login="1">Mit Google anmelden</button>`:'')}
-const okSync=()=>setSync(dirty.size?'Änderungen noch nicht gesichert …':'<b>●</b> in Drive gespeichert');
+const okSync=()=>setSync(READONLY?'<b>●</b> Nur Lesen':dirty.size?'Änderungen noch nicht gesichert …':'<b>●</b> in Drive gespeichert');
 function dbPut(coll,key){
+  if(READONLY) return;
   const o=coll==='termine'?S.termine[key]:coll==='register'?S.reg[key]:null;
   if(o) o.upd=new Date().toISOString();
   dirty.add(coll+'\t'+(coll==='eigene'?'*':key));LS.set('sp.dirty',[...dirty]);
@@ -55,6 +57,7 @@ async function pull(){
   catch(e){setSync('Verbindung gestört: '+(e&&e.message||e),true)}
 }
 async function flush(){
+  if(READONLY){dirty.clear();LS.set('sp.dirty',[]);return}
   if(flushing||!dirty.size) return;
   if(!GD.cached()){setSync('Nur lokal gespeichert – bitte anmelden',true,true);return}
   flushing=true;const snap=[...dirty];
@@ -72,6 +75,15 @@ async function flush(){
   flushing=false;
   if(dirty.size){clearTimeout(flushT);flushT=setTimeout(flush,4000)}
 }
+async function checkRole(){
+  try{
+    if(!ZID){const f=await GD.find(ZNAME);ZID=f&&f.id}
+    if(!ZID) return;
+    const j=await (await GD.fetch('https://www.googleapis.com/drive/v3/files/'+ZID+'?fields=capabilities(canEdit)',{},false)).json();
+    const ro=!(j.capabilities&&j.capabilities.canEdit);
+    if(ro!==READONLY){READONLY=ro;LS.set('sp.ro',ro);if(ro){dirty.clear();LS.set('sp.dirty',[])}render()}
+  }catch(e){}
+}
 async function checkBasis(){
   try{const f=await GD.find(BNAME);if(!f)return;const mod=await idbGet('basisMod');
     if(mod&&f.modifiedTime===mod)return;
@@ -85,7 +97,7 @@ async function initDb(){
     try{await GD.token(true);await initDb.go()}catch(err){setSync(String(err&&err.message||err),true,true)}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&GD.cached()){pull().then(flush)}});
   setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
-  initDb.go=async()=>{setSync('verbinde …');await pull();await flush();checkBasis()};
+  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();await flush();checkBasis()};
   if(GD.cached()) initDb.go(); else setSync('Nicht angemeldet',true,true);
 }
 function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}
@@ -337,8 +349,8 @@ function bindKJ(){
 function viewTermin(){
   const ev=S.sel&&evByKey[S.sel];
   if(!ev) return `<div class="card"><h2>Termin</h2><p class="muted">Wähle im Reiter «Kirchenjahr» einen Termin, oder lege hier einen freien Termin an (Sonderanlass).</p>
-    <div class="fields"><label><span>Datum</span><input type="date" id="fd"></label><label><span>Bezeichnung</span><input type="text" id="fn" placeholder="z.B. Wallfahrt, Hochzeit"></label></div>
-    <button class="btn pri" id="fadd">Termin anlegen</button></div>`;
+    ${canEdit()?`<div class="fields"><label><span>Datum</span><input type="date" id="fd"></label><label><span>Bezeichnung</span><input type="text" id="fn" placeholder="z.B. Wallfahrt, Hochzeit"></label></div>
+    <button class="btn pri" id="fadd">Termin anlegen</button>`:''}</div>`;
   const t=getTermin(ev); const ro=!canEdit();
   const sugg=bestPlans(ev.c,t.sch);
   const dis=ro?'disabled':'';
@@ -503,8 +515,8 @@ function bindTermin(){
       t._ok=false;applyTemplate(ev,t,v);commit();render();toast('Vorlage geladen');
     };
     const tn=$('#tnote'); if(tn) tn.oninput=e=>{t.note=e.target.value;commit()};
-    $('#addrow').onclick=()=>{t.rows.push({p:'',b:'SR',n:'',v:'',t:'',k:'L',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
-    $('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
+    if($('#addrow'))$('#addrow').onclick=()=>{t.rows.push({p:'',b:'SR',n:'',v:'',t:'',k:'L',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
+    if($('#addg'))$('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
     $('#edb').oninput=e=>{const tr=e.target.closest('tr');if(!tr||!e.target.dataset.f)return;const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();pv()};
     $('#edb').onchange=e=>{if(e.target.dataset.f==='t'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const x=(CAT[r.k]||new Map()).get(e.target.value);if(x){r.t=x.t;if(r.k!=='G'){r.b=x.b;r.n=x.n;r.v=''}commit();drawRows(ev,t);pv()}return}if(e.target.dataset.f==='k'||e.target.dataset.f==='b'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;commit();drawRows(ev,t);pv()}};
     $('#edb').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=+b.closest('tr').dataset.i;
@@ -841,7 +853,7 @@ function viewDaten(){
    <div class="card"><h2>Stand</h2><p class="small">Datenbank-Stand ${fmtD(D.stand)}: ${D.plans.length} Pläne, ${EV.length} Termine (Kirchenjahr 2026/27 und 2027/28), ${D.chants.length} Choralgesänge, ${D.hym.length} Liederbuch-Nummern.</p>
      <p class="small">In diesem Browser gespeichert: ${nT} bearbeitete Termine, ${Object.keys(S.reg).length} Register-Einträge, ${S.custom.length} eigene Gesänge.</p>
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="exp">Eigene Änderungen exportieren (JSON)</button>
-     <label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label></div>
+     ${canEdit()?'<label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>':''}</div>
      <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
   </div><div>
@@ -857,7 +869,7 @@ function viewDaten(){
 function bindDaten(){
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
-  $('#imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);
+  const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);
     Object.assign(S.termine,j.termine||{});Object.assign(S.reg,j.reg||{});
     (j.custom||[]).forEach(c=>{if(!S.custom.some(x=>x.art===c.art&&x.name===c.name&&x.nr===c.nr))S.custom.push(c)});
     save();Object.keys(j.termine||{}).forEach(k=>dbPut('termine',k));Object.keys(j.reg||{}).forEach(k=>dbPut('register',k));if((j.custom||[]).length)dbPut('eigene','*');toast('Importiert');render()}catch(err){toast('Datei nicht lesbar')}};r.readAsText(f)};
