@@ -805,6 +805,11 @@ function matchDriveFiles(files){
     const linked=reg.find(r=>[r.nt,r.cn,r.on].some(v=>v&&String(v).includes(f.id)));
     return {f,c,kind,sim,linked}});
 }
+function applyDriveLink(r,c){const ob=S.reg[c.key]=S.reg[c.key]||{};const T=r.f.type;
+  const cur=REG().find(x=>x.key===c.key), pt=r.f.part||'';
+  if(T==='nt'){if(pt){const l=ntParse(cur.nt).filter(x=>x.l);if(!l.some(x=>ntMid(x.u)===r.f.id))l.push({l:pt,u:fileUrl(r.f.id)});ob.nt=ntStr(sortParts(l))}else ob.nt=fileUrl(r.f.id)}
+  else{const l=parseLinks(cur[T]||'');if(!l.some(x=>x.u.includes(r.f.id))){l.push({l:pt,u:fileUrl(r.f.id)});ob[T]=lnkStr(sortParts(l))}}
+  save();regPut(c.key);for(const k in AUTO)delete AUTO[k]}
 async function driveSync(){
   if(!GD.cached()){toast('Bitte zuerst oben mit Google anmelden');return}
   const nfix=persistNorm(); toast((nfix?nfix+' Einträge bereinigt – ':'')+'Lese Notator- und PDF-Ablage in Google Drive …');
@@ -821,7 +826,10 @@ async function driveSync(){
         tok=p.nextPageToken; if(!tok) break}}
   }catch(e){
     toast('Drive-Abgleich fehlgeschlagen: '+(e&&e.message||e));return}
-  const rows=matchDriveFiles(files);
+  let rows=matchDriveFiles(files);
+  /* eindeutige exakte Treffer (genau 1 Kandidat) werden automatisch verknüpft */
+  let auto=0; rows.forEach(r=>{if(!r.linked&&r.c.length===1){applyDriveLink(r,r.c[0]);auto++}});
+  if(auto){drawGes();rows=matchDriveFiles(files)}
   const o=document.createElement('div');
   o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:800px;width:100%;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
@@ -829,7 +837,7 @@ async function driveSync(){
   todo.sort((a,b)=>String(a.f.base).replace(/\s+[–-]\s+.*$/,'').localeCompare(String(b.f.base).replace(/\s+[–-]\s+.*$/,''))||partRank(a.f.part)-partRank(b.f.part));
   const exact=todo.filter(r=>r.c.length), simil=todo.filter(r=>!r.c.length);
   const simHit=simil.filter(r=>r.sim.length), simNone=simil.filter(r=>!r.sim.length);
-  b.innerHTML=`<h3 style="margin:0 0 4px">Dateien in Google Drive (Notator, Choral-PDF, Orgel-PDF)</h3><p class="small muted" style="margin:0 0 8px">${rows.length} Dateien gefunden${done?', '+done+' bereits verknüpft':''}. Vorschläge prüfen und übernehmen.</p>
+  b.innerHTML=`<h3 style="margin:0 0 4px">Dateien in Google Drive (Notator, Choral-PDF, Orgel-PDF)</h3><p class="small muted" style="margin:0 0 8px">${rows.length} Dateien gefunden${auto?', '+auto+' automatisch verknüpft':''}${done-auto>0?', '+(done-auto)+' bereits verknüpft':''}. Restliche Vorschläge prüfen und übernehmen.</p>
    <div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn pri" id="dst1">Genaue Treffer (${exact.length})</button><button class="btn" id="dst2">Ähnliche Treffer (${simHit.length})</button></div>
    <div id="dsl" style="overflow:auto;flex:1;border:1px solid #8883;border-radius:6px;padding:6px"></div><div id="dsl2" style="overflow:auto;flex:1;border:1px solid #8883;border-radius:6px;padding:6px;display:none"></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn pri" id="dsok">Ausgewählte verknüpfen</button><button class="btn" id="dsx">Schliessen</button></div>`;
@@ -843,11 +851,7 @@ async function driveSync(){
   b.onchange=e=>{const s=e.target.dataset.s;if(s!=null){const cb=b.querySelector('input[data-g="'+e.target.dataset.g+'"][data-i="'+s+'"]');if(cb)cb.checked=!!e.target.value}};
   $('#dsok').onclick=()=>{let n=0;
     [['e',exact,r=>r.c],['s',simHit,r=>r.sim.map(x=>x.r)]].forEach(([g,list,get])=>list.forEach((r,i)=>{const cb=b.querySelector('input[data-g="'+g+'"][data-i="'+i+'"]'),sel=b.querySelector('select[data-g="'+g+'"][data-s="'+i+'"]');if(!cb||!cb.checked||!sel.value)return;
-      const c=get(r)[+sel.value];const ob=S.reg[c.key]=S.reg[c.key]||{};const T=r.f.type;
-        const cur=REG().find(x=>x.key===c.key), pt=r.f.part||'';
-        if(T==='nt'){if(pt){const l=ntParse(cur.nt).filter(x=>x.l);if(!l.some(x=>ntMid(x.u)===r.f.id))l.push({l:pt,u:fileUrl(r.f.id)});ob.nt=ntStr(sortParts(l))}else ob.nt=fileUrl(r.f.id)}
-        else{const l=parseLinks(cur[T]||'');if(!l.some(x=>x.u.includes(r.f.id))){l.push({l:pt,u:fileUrl(r.f.id)});ob[T]=lnkStr(sortParts(l))}}
-        save();regPut(c.key);for(const k in AUTO)delete AUTO[k];n++}));
+      const c=get(r)[+sel.value];applyDriveLink(r,c);n++}));
     o.remove();drawGes();toast(n+' Datei'+(n===1?'':'en')+' verknüpft')};
 }
 function bindGes(){
