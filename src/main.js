@@ -187,7 +187,7 @@ const REG=()=>{
     ['cn','yt','on'].forEach(k=>{if(o[k]==='-')x[k]='';else if(o[k])x[k]=o[k]});if(o.nt)x.nt=o.nt;x.fx=Array.isArray(o.fe);x.fe=x.fx?o.fe:x.fe0;x.po=o.po!=null&&o.po!==''?o.po:x.po0;if(o.nm)x.name=o.nm;if(o.nrs)x.nr=o.nr||'';x.raw={cn:x.cn||'',on:x.on||'',nt:x.nt||''};const nl=normLinks(x);x.cn=nl.cn;x.on=nl.on;x.nt=nl.nt;return x});
 };
 /* Links: «Bezeichnung|URL ; Bezeichnung|URL» oder nur URLs */
-const parseLinks=s=>String(s||'').split(/\s*;\s*/).map(x=>x.trim()).filter(Boolean).map(x=>{const i=x.indexOf('|');return i>0&&/^https?:/.test(x.slice(i+1))?{l:x.slice(0,i),u:x.slice(i+1)}:/^https?:/.test(x)?{l:'',u:x}:null}).filter(Boolean);
+const parseLinks=s=>String(s||'').split(/\s*;\s*/).map(x=>x.trim()).filter(Boolean).map(x=>{const i=x.indexOf('|');return i>0&&/^https?:/.test(x.slice(i+1))?{l:x.slice(0,i).replace(/^Choralnoten\b/i,'Choral').replace(/^Organistennoten\b/i,'Orgel'),u:x.slice(i+1)}:/^https?:/.test(x)?{l:'',u:x}:null}).filter(Boolean);
 const partOf=p=>{const m=/(?:^|[^A-Za-z])(Kyrie|Gloria|Sanctus|Agnus|Ite\b)/i.exec(String(p||'').trim());return m?m[1].toLowerCase():''};
 const lnkStr=l=>l.map(x=>(x.l?x.l+'|':'')+x.u).join(' ; ');
 /* Links eines Gesangs; bei Messteilen (Kyrie, Gloria …) nur die Links mit passender Teil-Bezeichnung */
