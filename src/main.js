@@ -671,20 +671,7 @@ function ntBlock(r){const l=ntParse(r.nt);
   const tip='In Notator öffnen (vorhandene Version aus Drive, sonst GregoBase-Suche)';
   if(l.some(x=>x.l)) return 'Notator: '+l.map(x=>`<a href="${esc(ntLink(r.name,x))}" target="_blank" rel="noopener" title="${tip}">${esc(x.l||'Datei')} ↗</a>`).join(' · ')+` <span class="pill ok" title="verknüpfte Notator-Dateien">${l.length>1?'Dateien':'Datei'} verknüpft</span>`;
   return `<a href="${esc(ntUrl(r.name,r))}" target="_blank" rel="noopener" title="${tip}">Notator ↗</a>`+(l.length?' <span class="pill ok" title="verknüpfte Notator-Datei">Datei verknüpft</span>':'')}
-function linkNt(key){
-  const r=REG().find(x=>x.key===key); if(!r) return;
-  const o=document.createElement('div');
-  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:520px;width:100%;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
-  b.innerHTML=`<h3 style="margin:0 0 4px">Notator-Datei verknüpfen</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>Google-Drive-Link (Teilen-Link) oder Datei-ID der .notator-Datei einfügen. Bei mehreren Teilen (Messe): «Kyrie|Link ; Gloria|Link ; …».</p>
-   <input type="text" id="ntv" value="${esc(r.nt||'')}" placeholder="https://drive.google.com/file/d/…/view">
-   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn pri" id="nts">Speichern</button><button class="btn" id="ntc">Abbrechen</button>${r.nt?'<button class="btn" id="ntr">Verknüpfung entfernen</button>':''}</div>`;
-  o.appendChild(b);document.body.appendChild(o);$('#ntv').focus();
-  const done=()=>o.remove(); $('#ntc').onclick=done; o.onclick=e=>{if(e.target===o)done()};
-  const put=v=>{const ob=S.reg[key]=S.reg[key]||{};ob.nt=v;save();regPut(key);done();drawGes()};
-  $('#nts').onclick=()=>{const v=$('#ntv').value.trim();if(!v){toast('Link einfügen');return}if(!ntParse(v).length||v.split(/\s*;\s*/).filter(Boolean).length!==ntParse(v).length){toast('Kein gültiger Drive-Link');return}put(v);toast('Notator-Datei verknüpft')};
-  const nr=$('#ntr'); if(nr) nr.onclick=()=>{put('');toast('Verknüpfung entfernt')};
-}
+function linkNt(key){editLinks(key,'nt')}
 
 /* Datei aus Google Drive wählen: Suche nach Dateinamen oder Durchblättern der Ordner */
 function drivePicker(){
@@ -739,12 +726,12 @@ function drivePicker(){
 }
 function editLinks(key,f){
   const r=REG().find(x=>x.key===key); if(!r) return;
-  const lab={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten'}[f], dlab={cn:'Choral',yt:'YouTube',on:'Orgel'}[f];
-  let rows=parseLinks(r[f]).map(x=>({l:x.l,u:x.u})); if(!rows.length) rows=[{l:'',u:''}];
+  const lab={cn:'Choralnoten',yt:'YouTube',on:'Organistennoten',nt:'Notator-Dateien'}[f], dlab={cn:'Choral',yt:'YouTube',on:'Orgel',nt:'Datei'}[f];
+  let rows=(f==='nt'?ntParse(r.nt):parseLinks(r[f])).map(x=>({l:x.l,u:x.u})); if(!rows.length) rows=[{l:'',u:''}];
   const o=document.createElement('div');
   o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   const b=document.createElement('div');b.style.cssText='background:var(--surface);color:var(--ink);max-width:620px;width:100%;max-height:90vh;display:flex;flex-direction:column;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid #8884';
-  b.innerHTML=`<h3 style="margin:0 0 4px">${esc(lab)}</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>Titel (optional) und Link. Leerer Titel = «${esc(dlab)}».</p><div id="lkr" style="overflow:auto;flex:1"></div>
+  b.innerHTML=`<h3 style="margin:0 0 4px">${esc(lab)}</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>${f==='nt'?'Google-Drive-Link oder Datei-ID der .notator-Datei. Bei Messen pro Teil eine Zeile (Titel z.B. «Kyrie»). ':''}Titel (optional) und Link. Leerer Titel = «${esc(dlab)}».</p><div id="lkr" style="overflow:auto;flex:1"></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="lka">＋ Weiterer Link</button><span style="flex:1"></span><button class="btn pri" id="lks">Speichern</button><button class="btn" id="lkc">Abbrechen</button></div>`;
   o.appendChild(b);document.body.appendChild(o);
   const draw=()=>{$('#lkr').innerHTML=rows.map((x,i)=>`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><input type="text" data-i="${i}" data-p="l" value="${esc(x.l)}" placeholder="Titel / Bezeichnung" style="flex:1;min-width:130px"><input type="text" data-i="${i}" data-p="u" value="${esc(x.u)}" placeholder="https://…" style="flex:2;min-width:180px">${f==='yt'?'':`<button class="btn sm" data-p="${i}" title="Datei in Google Drive suchen oder auswählen">📁 Drive</button>`}<button class="btn sm" data-d="${i}" title="Link löschen">🗑</button></div>`).join('')||'<p class="muted small">Keine Links.</p>'};
@@ -756,8 +743,8 @@ function editLinks(key,f){
   $('#lka').onclick=()=>{rows.push({l:'',u:''});draw();const ins=document.querySelectorAll('#lkr input[data-p="u"]');ins[ins.length-1].focus()};
   const done=()=>o.remove(); $('#lkc').onclick=done; o.onclick=e=>{if(e.target===o)done()};
   $('#lks').onclick=()=>{
-    const out=[]; for(const x of rows){const u=x.u.trim(),l=x.l.trim().replace(/[;|]/g,' ');if(!u&&!l)continue;if(!/^https?:\/\/\S+$/i.test(u)){toast('Link muss mit http:// oder https:// beginnen');return}out.push((l?l+'|':'')+u.replace(/;/g,'%3B'))}
-    const ob=S.reg[key]=S.reg[key]||{}; ob[f]=out.length?out.join(' ; '):'-'; save();regPut(key);for(const k in AUTO)delete AUTO[k];done();drawGes();toast(out.length?'Links gespeichert':'Links gelöscht')};
+    const out=[]; for(const x of rows){const u=x.u.trim(),l=x.l.trim().replace(/[;|]/g,' ');if(!u&&!l)continue;if(f==='nt'?!ntMid(u):!/^https?:\/\/\S+$/i.test(u)){toast(f==='nt'?'Kein gültiger Drive-Link oder Datei-ID':'Link muss mit http:// oder https:// beginnen');return}out.push((l?l+'|':'')+u.replace(/;/g,'%3B'))}
+    const ob=S.reg[key]=S.reg[key]||{}; ob[f]=out.length?out.join(' ; '):(f==='nt'?'':'-'); save();regPut(key);for(const k in AUTO)delete AUTO[k];done();drawGes();toast(out.length?'Links gespeichert':'Links gelöscht')};
 }
 function editFeste(key){
   const r=REG().find(x=>x.key===key); if(!r) return;
