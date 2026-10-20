@@ -641,7 +641,13 @@ function viewGes(){
    <p class="hint">Bezeichnung und Nr. sind direkt änderbar (Schreibweise korrigieren); der ursprüngliche Eintrag wird darunter angezeigt und weiter für die Zuordnung zu den Plänen verwendet. Doppelte oder falsche Einträge mit «löschen» entfernen (direkt «Rückgängig» möglich; über «gelöschte zeigen» jederzeit wiederherstellbar). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. YouTube-Links erscheinen nur im Scholaplan. Änderungen werden im gemeinsamen Speicher abgelegt.</p>`;
 }
 function gget(r){return [r.art,r.nr,r.name+' '+r.po+' '+r.fe.join(' '),r.cnt,r.last,r.cn||'',r.yt||'',r.on||'']}
-function drawGesHead(){const cs=gcols();$('#rh').innerHTML=tblHead(cs,S.gst,S.gfl,'g',tblVals(REG().filter(r=>S.rhid||!r.hide),gget,cs))}
+/* Tabellenkopf + Filterzeile fixieren: Kopfbereich bleibt stehen, nur die Liste scrollt */
+function fitStk(){document.querySelectorAll('.tw.stk').forEach(w=>{if(!w.offsetParent)return;
+  const th=w.querySelector('thead tr'); if(th)w.style.setProperty('--h1',th.getBoundingClientRect().height+'px');
+  const top=w.getBoundingClientRect().top+window.scrollY, sab=0;
+  w.style.maxHeight=Math.max(220,Math.round(window.innerHeight-top-14))+'px'})}
+window.addEventListener('resize',()=>fitStk());
+function drawGesHead(){const cs=gcols();$('#rh').innerHTML=tblHead(cs,S.gst,S.gfl,'g',tblVals(REG().filter(r=>S.rhid||!r.hide),gget,cs));fitStk()}
 function drawGes(){
   const q=norm(S.rq); let all=REG();
   const nk=r=>norm(r.name).replace(/ (maennerschola|schola|frauenschola)$/,'').slice(0,14);
@@ -855,7 +861,7 @@ async function driveSync(){
     o.remove();drawGes();toast(n+' Datei'+(n===1?'':'en')+' verknüpft')};
 }
 function bindGes(){
-  drawGesHead();drawGes();
+  drawGesHead();drawGes();window.scrollTo(0,0);fitStk();
   $('#rq').oninput=e=>{S.rq=e.target.value;drawGes()};
   $('#rart').onchange=e=>{S.rart=e.target.value;drawGes()};
   $('#rdup').onchange=e=>{S.rdup=e.target.checked;drawGes()};
@@ -879,7 +885,7 @@ function viewLB(){
    <div class="tw stk"><table><thead id="hh"></thead><tbody id="hl"></tbody></table></div>
    <p class="hint">Standard ist das Salve Regina (SR): Nr. 1–80 Gebete und Andachten, 90–405 Lieder fürs Volk, 410–500 Gregorianische Gesänge (meist Schola, teils Volk bzw. im Wechsel). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. Keine YouTube-Links im Liederbuch-Register.</p>`;
 }
-function drawLBHead(){$('#hh').innerHTML=tblHead(LCOLS,S.lst,S.lfl,'l',tblVals(D.hym,h=>[h[0],h[1],h[2],h[3],h[4],h[5]],LCOLS))}
+function drawLBHead(){$('#hh').innerHTML=tblHead(LCOLS,S.lst,S.lfl,'l',tblVals(D.hym,h=>[h[0],h[1],h[2],h[3],h[4],h[5]],LCOLS));fitStk()}
 function drawLB(){
   const q=norm(S.hq);
   const base=D.hym.filter(h=>(!S.hbook||h[0]===S.hbook)&&(!S.hber||h[3]===S.hber)&&(!q||norm(h[1]+' '+h[2]).includes(q)));
