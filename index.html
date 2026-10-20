@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 8 -->
+<!-- Build 9 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -217,7 +217,7 @@ const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/
 const LS={get(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const S={tab:'kj',kj:'2026/27',q:'',art:'',status:'',unsure:false,sel:null,role:'org',
   termine:LS.get('sp.termine',{}),reg:LS.get('sp.reg',{}),custom:LS.get('sp.custom',[]),
-  month:String(new Date().getMonth()+1),prev:'lieder',organ:true,rq:'',rart:'',hq:'',hbook:'SR',hber:'',gst:{c:-1,d:1},gfl:[],lst:{c:-1,d:1},lfl:[],rhid:false,rdup:false,aq:'',aart:''};
+  month:String(new Date().getMonth()+1),prev:'lieder',organ:true,rq:'',rart:'',rfile:'',hq:'',hbook:'SR',hber:'',gst:{c:-1,d:1},gfl:[],lst:{c:-1,d:1},lfl:[],rhid:false,rdup:false,aq:'',aart:''};
 const save=()=>{LS.set('sp.termine',S.termine);LS.set('sp.reg',S.reg);LS.set('sp.custom',S.custom)};
 let READONLY=LS.get('sp.ro',false);
 const canEdit=()=>!READONLY,canSchola=()=>true,canOrgan=()=>true;
@@ -840,6 +840,7 @@ function viewGes(){
   const arts=[...new Set(D.chants.map(c=>c[0]))];
   return `<div class="tools"><label>Suche<input type="search" id="rq" value="${esc(S.rq)}" placeholder="Incipit, Nr."></label>
    <label>Art<select id="rart"><option value="">alle</option>${arts.map(a=>`<option ${S.rart===a?'selected':''}>${esc(a)}</option>`).join('')}</select></label>
+   <label>Dateien<select id="rfile">${[['','alle'],['nt0','Notator fehlt'],['nt1','Notator verknüpft'],['cn0','Choral-PDF fehlt'],['cn1','Choral-PDF verknüpft'],['on0','Orgel-PDF fehlt'],['on1','Orgel-PDF verknüpft']].map(([v,l])=>`<option value="${v}" ${S.rfile===v?'selected':''}>${l}</option>`).join('')}</select></label>
    <label class="chk"><input type="checkbox" id="rdup" ${S.rdup?'checked':''}> nur ähnliche / doppelte</label>
    <label class="chk"><input type="checkbox" id="rhid" ${S.rhid?'checked':''}> gelöschte zeigen</label>
    ${canEdit()?'<button class="btn" id="radd">+ Eintrag</button> <button class="btn" id="rsync" title="Liest die Notator-Ablage in Google Drive und verknüpft passende Dateien mit den Gesängen">☁ Drive abgleichen</button>':''}<span class="count" id="rc"></span></div>
@@ -854,12 +855,13 @@ function fitStk(){document.querySelectorAll('.tw.stk').forEach(w=>{if(!w.offsetP
   w.style.maxHeight=Math.max(220,Math.round(window.innerHeight-top-14))+'px'})}
 window.addEventListener('resize',()=>fitStk());
 function drawGesHead(){const cs=gcols();$('#rh').innerHTML=tblHead(cs,S.gst,S.gfl,'g',tblVals(REG().filter(r=>S.rhid||!r.hide),gget,cs));fitStk()}
+const fileOk=r=>{const f=S.rfile;if(!f)return true;const k=f.slice(0,2),has=k==='nt'?ntParse(r.nt).length>0:parseLinks(r[k]).length>0;return f[2]==='1'?has:!has};
 function drawGes(){
   const q=norm(S.rq); let all=REG();
   const nk=r=>norm(r.name).replace(/ (maennerschola|schola|frauenschola)$/,'').slice(0,14);
   const cn={},cr={};all.forEach(r=>{if(r.hide)return;const k=nk(r);if(k)cn[k]=(cn[k]||0)+1;if(r.nr)cr[r.nr]=(cr[r.nr]||0)+1});
   const isDup=r=>!r.hide&&((nk(r)&&cn[nk(r)]>1)||(r.nr&&cr[r.nr]>1));
-  let base=all.filter(r=>(S.rhid||!r.hide)&&(!S.rart||r.art===S.rart)&&(!q||norm(r.name+' '+r.orig+' '+r.nr+' '+r.po+' '+r.fe.join(' ')).includes(q))&&(!S.rdup||isDup(r)));
+  let base=all.filter(r=>(S.rhid||!r.hide)&&(!S.rart||r.art===S.rart)&&(!q||norm(r.name+' '+r.orig+' '+r.nr+' '+r.po+' '+r.fe.join(' ')).includes(q))&&(!S.rdup||isDup(r))&&fileOk(r));
   const cols=gcols(); let l=tblApply(base,gget,cols,S.gst,S.gfl);
   if(S.rdup&&S.gst.c<0) l=l.slice().sort((a,b)=>(a.nr&&cr[a.nr]>1?a.nr:nk(a)).localeCompare(b.nr&&cr[b.nr]>1?b.nr:nk(b),'de',{numeric:true}));
   const ro=!canEdit(); const show=l.slice(0,400);
@@ -1070,6 +1072,7 @@ function bindGes(){
   drawGesHead();drawGes();window.scrollTo(0,0);fitStk();
   $('#rq').oninput=e=>{S.rq=e.target.value;drawGes()};
   $('#rart').onchange=e=>{S.rart=e.target.value;drawGes()};
+  $('#rfile').onchange=e=>{S.rfile=e.target.value;drawGes()};
   $('#rdup').onchange=e=>{S.rdup=e.target.checked;drawGes()};
   $('#rhid').onchange=e=>{S.rhid=e.target.checked;drawGes()};
   tblBind($('#rh'),S.gst,S.gfl,drawGes,drawGesHead);
