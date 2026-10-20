@@ -735,12 +735,12 @@ function editLinks(key,f){
   b.innerHTML=`<h3 style="margin:0 0 4px">${esc(lab)}</h3><p class="small muted" style="margin:0 0 10px">${esc(r.name)}<br>${f==='nt'?'Google-Drive-Link oder Datei-ID der .notator-Datei. Bei Messen pro Teil eine Zeile (Titel z.B. «Kyrie»). ':''}Titel (optional) und Link. Leerer Titel = «${esc(dlab)}».</p><div id="lkr" style="overflow:auto;flex:1"></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="lka">＋ Weiterer Link</button><span style="flex:1"></span><button class="btn pri" id="lks">Speichern</button><button class="btn" id="lkc">Abbrechen</button></div>`;
   o.appendChild(b);document.body.appendChild(o);
-  const draw=()=>{$('#lkr').innerHTML=rows.map((x,i)=>`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><input type="text" data-i="${i}" data-p="l" value="${esc(x.l)}" placeholder="Titel / Bezeichnung" style="flex:1;min-width:130px"><input type="text" data-i="${i}" data-p="u" value="${esc(x.u)}" placeholder="https://…" style="flex:2;min-width:180px">${f==='yt'?'':`<button class="btn sm" data-p="${i}" title="Datei in Google Drive suchen oder auswählen">📁 Drive</button>`}<button class="btn sm" data-d="${i}" title="Link löschen">🗑</button></div>`).join('')||'<p class="muted small">Keine Links.</p>'};
+  const draw=()=>{$('#lkr').innerHTML=rows.map((x,i)=>`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><input type="text" data-i="${i}" data-p="l" value="${esc(x.l)}" placeholder="Titel / Bezeichnung" style="flex:1;min-width:130px"><input type="text" data-i="${i}" data-p="u" value="${esc(x.u)}" placeholder="https://…" style="flex:2;min-width:180px">${f==='yt'?'':`<button class="btn sm" data-pk="${i}" title="Datei in Google Drive suchen oder auswählen">📁 Drive</button>`}<button class="btn sm" data-d="${i}" title="Link löschen">🗑</button></div>`).join('')||'<p class="muted small">Keine Links.</p>'};
   draw();
   const first=$('#lkr input[data-p="u"]'); if(first) first.focus();
   $('#lkr').oninput=e=>{const i=e.target.dataset.i;if(i!=null)rows[+i][e.target.dataset.p]=e.target.value};
   $('#lkr').onclick=async e=>{const d=e.target.closest('[data-d]');if(d){rows.splice(+d.dataset.d,1);draw();return}
-    const p=e.target.closest('[data-p]');if(p){const i=+p.dataset.p;const f=await drivePicker();if(f&&rows[i]){rows[i].u=f.url;draw()}}};
+    const p=e.target.closest('[data-pk]');if(p){const i=+p.dataset.pk;const f=await drivePicker();if(f&&rows[i]){rows[i].u=f.url;draw()}}};
   $('#lka').onclick=()=>{rows.push({l:'',u:''});draw();const ins=document.querySelectorAll('#lkr input[data-p="u"]');ins[ins.length-1].focus()};
   const done=()=>o.remove(); $('#lkc').onclick=done; o.onclick=e=>{if(e.target===o)done()};
   $('#lks').onclick=()=>{
