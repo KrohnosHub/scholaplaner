@@ -642,8 +642,9 @@ function gget(r){return [r.art,r.nr,r.name+' '+r.po+' '+r.fe.join(' '),r.cnt,r.l
 /* Tabellenkopf + Filterzeile fixieren: Kopfbereich bleibt stehen, nur die Liste scrollt */
 function fitStk(){document.querySelectorAll('.tw.stk').forEach(w=>{if(!w.offsetParent)return;
   const th=w.querySelector('thead tr'); if(th)w.style.setProperty('--h1',th.getBoundingClientRect().height+'px');
-  const top=w.getBoundingClientRect().top+window.scrollY, sab=0;
-  w.style.maxHeight=Math.max(220,Math.round(window.innerHeight-top-14))+'px'})}
+  const top=w.getBoundingClientRect().top+window.scrollY, pb=w.parentElement.getBoundingClientRect().bottom+window.scrollY, below=Math.max(0,pb-(top+w.offsetHeight))+28;
+  w.style.maxHeight=Math.max(220,Math.floor(window.innerHeight-top-below))+'px';
+  const ex=document.documentElement.scrollHeight-window.innerHeight; if(ex>0)w.style.maxHeight=Math.max(220,w.offsetHeight-ex)+'px'})}
 window.addEventListener('resize',()=>fitStk());
 function drawGesHead(){const cs=gcols();$('#rh').innerHTML=tblHead(cs,S.gst,S.gfl,'g',tblVals(REG().filter(r=>S.rhid||!r.hide),gget,cs));fitStk()}
 const fileOk=r=>{const f=S.rfile;if(!f)return true;const k=f.slice(0,2),has=k==='nt'?ntParse(r.nt).length>0:parseLinks(r[k]).length>0;return f[2]==='1'?has:!has};
