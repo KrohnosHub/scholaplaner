@@ -631,10 +631,7 @@ async function makePdf(ev,t,intern){
 const GCOLS=[{l:'Art'},{l:'Nr.',num:true},{l:'Bezeichnung / Incipit',nodl:true},{l:'Einsätze',num:true},{l:'zuletzt',num:true},{l:'Choralnoten',link:true},{l:'YouTube',link:true},{l:'Organistennoten',link:true},{l:'Dublette?',nofilter:true,nosort:true}];
 const gcols=()=>canOrgan()?GCOLS:GCOLS.filter(c=>c.l!=='Organistennoten');
 function viewGes(){
-  const arts=[...new Set(D.chants.map(c=>c[0]))];
-  return `<div class="tools"><label>Suche<input type="search" id="rq" value="${esc(S.rq)}" placeholder="Incipit, Nr."></label>
-   <label>Art<select id="rart"><option value="">alle</option>${arts.map(a=>`<option ${S.rart===a?'selected':''}>${esc(a)}</option>`).join('')}</select></label>
-   <label>Dateien<select id="rfile">${[['','alle'],['nt0','Notator fehlt'],['nt1','Notator verknüpft'],['cn0','Choral-PDF fehlt'],['cn1','Choral-PDF verknüpft'],['on0','Orgel-PDF fehlt'],['on1','Orgel-PDF verknüpft']].map(([v,l])=>`<option value="${v}" ${S.rfile===v?'selected':''}>${l}</option>`).join('')}</select></label>
+  return `<div class="tools"><label>Dateien<select id="rfile">${[['','alle'],['nt0','Notator fehlt'],['nt1','Notator verknüpft'],['cn0','Choral-PDF fehlt'],['cn1','Choral-PDF verknüpft'],['on0','Orgel-PDF fehlt'],['on1','Orgel-PDF verknüpft']].map(([v,l])=>`<option value="${v}" ${S.rfile===v?'selected':''}>${l}</option>`).join('')}</select></label>
    <label class="chk"><input type="checkbox" id="rdup" ${S.rdup?'checked':''}> nur ähnliche / doppelte</label>
    <label class="chk"><input type="checkbox" id="rhid" ${S.rhid?'checked':''}> gelöschte zeigen</label>
    ${canEdit()?'<button class="btn" id="radd">+ Eintrag</button> <button class="btn" id="rsync" title="Liest die Notator-Ablage in Google Drive und verknüpft passende Dateien mit den Gesängen">☁ Drive abgleichen</button>':''}<span class="count" id="rc"></span></div>
@@ -864,8 +861,6 @@ async function driveSync(){
 }
 function bindGes(){
   drawGesHead();drawGes();window.scrollTo(0,0);fitStk();
-  $('#rq').oninput=e=>{S.rq=e.target.value;drawGes()};
-  $('#rart').onchange=e=>{S.rart=e.target.value;drawGes()};
   $('#rfile').onchange=e=>{S.rfile=e.target.value;drawGes()};
   $('#rdup').onchange=e=>{S.rdup=e.target.checked;drawGes()};
   $('#rhid').onchange=e=>{S.rhid=e.target.checked;drawGes()};
@@ -874,7 +869,7 @@ function bindGes(){
   $('#rl').onclick=e=>{const b=e.target.closest('[data-fe]');if(b)editFeste(b.dataset.fe);const n=e.target.closest('[data-nt]');if(n)linkNt(n.dataset.nt);const lk=e.target.closest('[data-lk]');if(lk&&!e.target.closest('a'))editLinks(lk.dataset.lk,lk.dataset.f)};
   $('#rl').onchange=e=>{const k=e.target.dataset.k;if(!k)return;if(e.target.dataset.f==='hide'){S.reg[k]=S.reg[k]||{};const on=e.target.checked;S.reg[k].hide=on;save();regPut(k);drawGes();if(on)toast('Eintrag gelöscht',()=>{S.reg[k].hide=false;save();regPut(k);drawGes()})}else if(e.target.dataset.f==='nm'||e.target.dataset.f==='nr')drawGes()};
   const sy=$('#rsync'); if(sy) sy.onclick=driveSync;
-  const a=$('#radd'); if(a) a.onclick=()=>{const name=$('#rq').value.trim();if(!name){toast('Incipit ins Suchfeld schreiben, dann «+ Eintrag»');return}
+  const a=$('#radd'); if(a) a.onclick=()=>{const name=(prompt('Incipit / Bezeichnung des neuen Eintrags:')||'').trim();if(!name)return;
     {const c={art:S.rart||'Schola-Gesang (Proprium/Choral)',nr:'',name};S.custom.push(c);dbPut('eigene',regKey(c.art,'',c.name),{art:c.art,nr:'',name:c.name})}save();toast('Eintrag angelegt');drawGes()};
 }
 
