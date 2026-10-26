@@ -1044,7 +1044,7 @@ function regFixes(say){
     addL(m,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX','Orgel');
     if(!cur(m).nt&&!ob(m).nt){ob(m).nt=fileUrl('1ADz1Zq_pOOXVWF2bwYE9rjloxmAYqkUO');put(m)}}
   if(g&&m){
-    delL(g,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV'); delL(g,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX');
+    delL(g,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV'); delL(g,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX'); delL(g,'on','1stgZVmFNNHo6GTNyMMWzEPXd_D3QnE-p');
     {const gc=cur(g);if(gc.fe.includes('Rosenkranzsonntag')){ob(g).fe=gc.fe.filter(x=>x!=='Rosenkranzsonntag');put(g)}}
     setNm(g,'Gaudeamus... Sanctorum omnium');
     const lc=parseLinks(cur(g).cn||''),x=lc.find(y=>y.u.includes('18KCl-rAaPXHV46nr7TL6U2DAJFSx-2iy'));if(x&&x.l!=='Choral'){x.l='Choral';ob(g).cn=lnkStr(lc);put(g)}

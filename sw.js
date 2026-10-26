@@ -1,5 +1,5 @@
 // Offline-Cache für die App-Hülle. Drive-/Google-Anfragen werden nie zwischengespeichert.
-const CACHE='scholaplaner-v29';
+const CACHE='scholaplaner-v30';
 const SHELL=['./','index.html','manifest.webmanifest','icon.svg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith('scholaplaner-')&&x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
