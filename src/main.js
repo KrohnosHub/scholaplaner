@@ -636,7 +636,7 @@ function viewGes(){
    <label class="chk"><input type="checkbox" id="rhid" ${S.rhid?'checked':''}> gelöschte zeigen</label>
    ${canEdit()?'<button class="btn" id="radd">+ Eintrag</button> <button class="btn" id="rsync" title="Liest die Notator-Ablage in Google Drive und verknüpft passende Dateien mit den Gesängen">☁ Drive abgleichen</button>':''}<span class="count" id="rc"></span></div>
    <div class="tw stk"><table><thead id="rh"></thead><tbody id="rl"></tbody></table></div>
-   <p class="hint">Bezeichnung und Nr. sind direkt änderbar (Schreibweise korrigieren); der ursprüngliche Eintrag wird darunter angezeigt und weiter für die Zuordnung zu den Plänen verwendet. Doppelte oder falsche Einträge mit «löschen» entfernen (direkt «Rückgängig» möglich; über «gelöschte zeigen» jederzeit wiederherstellbar). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. YouTube-Links erscheinen nur im Scholaplan. Änderungen werden im gemeinsamen Speicher abgelegt.</p>`;
+   <details class="hintd"><summary>Hinweise</summary><p class="hint">Bezeichnung und Nr. sind direkt änderbar (Schreibweise korrigieren); der ursprüngliche Eintrag wird darunter angezeigt und weiter für die Zuordnung zu den Plänen verwendet. Doppelte oder falsche Einträge mit «löschen» entfernen (direkt «Rückgängig» möglich; über «gelöschte zeigen» jederzeit wiederherstellbar). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. YouTube-Links erscheinen nur im Scholaplan. Änderungen werden im gemeinsamen Speicher abgelegt.</p></details>`;
 }
 function gget(r){return [r.art,r.nr,r.name+' '+r.po+' '+r.fe.join(' '),r.cnt,r.last,r.cn||'',r.yt||'',r.on||'']}
 /* Tabellenkopf + Filterzeile fixieren: Kopfbereich bleibt stehen, nur die Liste scrollt */
@@ -646,6 +646,7 @@ function fitStk(){document.querySelectorAll('.tw.stk').forEach(w=>{if(!w.offsetP
   w.style.maxHeight=Math.max(220,Math.floor(window.innerHeight-top-below))+'px';
   const ex=document.documentElement.scrollHeight-window.innerHeight; if(ex>0)w.style.maxHeight=Math.max(220,w.offsetHeight-ex)+'px'})}
 window.addEventListener('resize',()=>fitStk());
+document.addEventListener('toggle',e=>{if(e.target.classList&&e.target.classList.contains('hintd'))fitStk()},true);
 function drawGesHead(){const cs=gcols();$('#rh').innerHTML=tblHead(cs,S.gst,S.gfl,'g',tblVals(REG().filter(r=>S.rhid||!r.hide),gget,cs));fitStk()}
 const fileOk=r=>{const f=S.rfile;if(!f)return true;const k=f.slice(0,2),has=k==='nt'?ntParse(r.nt).length>0:parseLinks(r[k]).length>0;return f[2]==='1'?has:!has};
 function drawGes(){
@@ -869,7 +870,7 @@ function viewLB(){
    <label>Bereich<select id="hber"><option value="">alle</option>${[...new Set(D.hym.filter(h=>h[0]==='SR').map(h=>h[3]))].sort().map(b=>`<option ${S.hber===b?'selected':''}>${esc(b)}</option>`).join('')}</select></label>
    <label>Suche<input type="search" id="hq" value="${esc(S.hq)}" placeholder="Titel oder Nr."></label><span class="count" id="hc"></span></div>
    <div class="tw stk"><table><thead id="hh"></thead><tbody id="hl"></tbody></table></div>
-   <p class="hint">Standard ist das Salve Regina (SR): Nr. 1–80 Gebete und Andachten, 90–405 Lieder fürs Volk, 410–500 Gregorianische Gesänge (meist Schola, teils Volk bzw. im Wechsel). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. Keine YouTube-Links im Liederbuch-Register.</p>`;
+   <details class="hintd"><summary>Hinweise</summary><p class="hint">Standard ist das Salve Regina (SR): Nr. 1–80 Gebete und Andachten, 90–405 Lieder fürs Volk, 410–500 Gregorianische Gesänge (meist Schola, teils Volk bzw. im Wechsel). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. Keine YouTube-Links im Liederbuch-Register.</p></details>`;
 }
 function drawLBHead(){$('#hh').innerHTML=tblHead(LCOLS,S.lst,S.lfl,'l',tblVals(D.hym,h=>[h[0],h[1],h[2],h[3],h[4],h[5]],LCOLS));fitStk()}
 function drawLB(){

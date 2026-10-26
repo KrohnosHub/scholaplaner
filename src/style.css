@@ -104,3 +104,5 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 .tw.stk{overscroll-behavior:contain}
 .tw.stk th{z-index:2}
 .tw.stk tr.fr th{top:var(--h1,34px);z-index:2}
+
+.hintd{margin-top:6px;font-size:12px;color:var(--muted)}.hintd summary{cursor:pointer;padding:2px 0;font-size:12px}.hintd .hint{font-size:12px;margin:4px 0}
