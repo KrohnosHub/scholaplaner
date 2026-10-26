@@ -901,49 +901,108 @@ function bindArch(){drawArch();$('#aq').oninput=e=>{S.aq=e.target.value;drawArch
   $('#al').onclick=e=>{const b=e.target.closest('button[data-p]');if(!b)return;const ev=evByKey[S.sel];const t=getTermin(ev);applyTemplate(ev,t,b.dataset.p);setTermin(ev,t);S.tab='termin';render();toast('Vorlage geladen')}}
 
 
-/* ---------- Einmalig: Sammel-PDF «Allerheiligen» in Einzel-PDFs aufteilen, in Drive ablegen, im Register verlinken ---------- */
-const AH={src:'14u80_mC95i_qz-Ff85zwTri_i-1IcGE3',folder:'1na4i6KGlePisA8ENF0tQU6mOdrBnd_PO',cut:0.5103,art:'Schola-Gesang (Proprium/Choral)'};
-const AH_PARTS=[
- {file:'Introitus Gaudeamus (Allerheiligen).pdf',page:0,entry:'Gaudeamus',label:'Introitus Allerheiligen'},
- {file:'Graduale Timete Dominum (Allerheiligen).pdf',page:1,y:[0,AH.cut],entry:'Timete Dominum…',label:'Graduale Allerheiligen'},
- {file:'Alleluia Venite ad me (Allerheiligen).pdf',page:1,y:[AH.cut,1],entry:'Timete Dominum…',label:'Alleluia Allerheiligen'},
- {file:'Offertorium Justorum animae (Allerheiligen).pdf',page:2,entry:'Justorum animae',label:'Offertorium Allerheiligen'},
- {file:'Communio Beati mundo corde (Allerheiligen).pdf',page:3,entry:'Beati mundo corde',label:'Communio Allerheiligen'},
- {file:'Communio Beati mundo corde – Psalmton (Allerheiligen).pdf',page:4,entry:'Beati mundo corde',label:'Communio Psalmton Allerheiligen'}];
+/* ---------- Einmalig: Sammel-PDFs in Einzel-PDFs aufteilen, in Drive ablegen, im Register verlinken ---------- */
+const SPL_ART='Schola-Gesang (Proprium/Choral)', SPL_FOLDER='1na4i6KGlePisA8ENF0tQU6mOdrBnd_PO', AH_CUT=0.5103;
+/* part: file (Drive-Name), pages (0-basiert), y (optionaler vertikaler Ausschnitt 0..1), key (Registereintrag, Anfang des Incipits), entry (Name, falls neu), label (Linkname) */
+const SPLITS=[
+ {name:'Allerheiligen',src:'14u80_mC95i_qz-Ff85zwTri_i-1IcGE3',n:5,parts:[
+  {file:'Introitus Gaudeamus (Allerheiligen).pdf',pages:[0],key:'Gaudeamus',label:'Introitus Allerheiligen'},
+  {file:'Graduale Timete Dominum (Allerheiligen).pdf',pages:[1],y:[0,AH_CUT],key:'Timete Dominum',entry:'Timete Dominum…',label:'Graduale Allerheiligen'},
+  {file:'Alleluia Venite ad me (Allerheiligen).pdf',pages:[1],y:[AH_CUT,1],key:'Timete Dominum',entry:'Timete Dominum…',label:'Alleluia Allerheiligen'},
+  {file:'Offertorium Justorum animae (Allerheiligen).pdf',pages:[2],key:'Justorum animae',label:'Offertorium Allerheiligen'},
+  {file:'Communio Beati mundo corde (Allerheiligen).pdf',pages:[3],key:'Beati mundo corde',label:'Communio Allerheiligen'},
+  {file:'Communio Beati mundo corde – Psalmton (Allerheiligen).pdf',pages:[4],key:'Beati mundo corde',label:'Communio Psalmton Allerheiligen'}]},
+ {name:'Weihnachten (Tagesmesse)',src:'1xH5_bUPGZfKuZs5Tg9moIvGfhXgWuXkU',n:7,parts:[
+  {file:'Introitus Puer natus est (Weihnachten Tagesmesse).pdf',pages:[0],key:'Puer natus est nobis',label:'Introitus Weihnachten Tagesmesse'},
+  {file:'Introitus Puer natus est – Orgel (Weihnachten Tagesmesse).pdf',pages:[1,2],key:'Puer natus est nobis',label:'Orgel Introitus Weihnachten Tagesmesse'},
+  {file:'Graduale Viderunt omnes (Weihnachten Tagesmesse).pdf',pages:[3],key:'Viderunt omnes (Graduale)',label:'Graduale Weihnachten Tagesmesse'},
+  {file:'Alleluia Dies sanctificatus (Weihnachten Tagesmesse).pdf',pages:[4],key:'Dies sanctificatus (Alleluia)',label:'Alleluia Weihnachten Tagesmesse'},
+  {file:'Offertorium Tui sunt caeli (Weihnachten Tagesmesse).pdf',pages:[5],key:'Tui sunt caeli',label:'Offertorium Weihnachten Tagesmesse'},
+  {file:'Communio Viderunt omnes (Weihnachten Tagesmesse).pdf',pages:[6],key:'Viderunt omnes (Communio)',label:'Communio Weihnachten Tagesmesse'}]},
+ {name:'Gründonnerstag',src:'1evG3ruL8DFI3sbIT_NZmacHs156wJWb5',n:6,parts:[
+  {file:'Introitus Nos autem gloriari (Gründonnerstag).pdf',pages:[0],key:'Nos autem gloriari',label:'Introitus Gründonnerstag'},
+  {file:'Introitus Nos autem gloriari – Orgel (Gründonnerstag).pdf',pages:[1,2],key:'Nos autem gloriari',label:'Orgel Introitus Gründonnerstag'},
+  {file:'Graduale Christus factus est (Gründonnerstag).pdf',pages:[3,4],key:'Christus factus est',label:'Graduale Gründonnerstag'},
+  {file:'Offertorium Dextera Domini (Gründonnerstag).pdf',pages:[5],key:'Dextera Domini',label:'Offertorium Gründonnerstag'}]},
+ {name:'Osternacht',src:'1KzjRHltKasJv1p7dHnWxu508CUFwaD1x',n:5,parts:[
+  {file:'Cantica nach den Lesungen (Osternacht).pdf',pages:[0],key:'Cantemus Domino (Osternacht)',label:'Cantica Osternacht'},
+  {file:'Alleluia (Osternacht).pdf',pages:[1],key:'Alleluia Osternacht',label:'Alleluia Osternacht'},
+  {file:'Et valde mane + Benedictus (Osternacht).pdf',pages:[4],key:'Et valde mane',label:'Benedictus Osternacht'}]},
+ {name:'Ostersonntag',src:'1VMcqgRFTQfOSKttA_Dqhi71ko4Mdo3TL',n:5,parts:[
+  {file:'Graduale Haec dies (Ostersonntag).pdf',pages:[1],key:'Haec dies',label:'Graduale Ostersonntag'},
+  {file:'Alleluia Pascha nostrum (Ostersonntag).pdf',pages:[2],key:'Alleluia Pascha nostrum',label:'Alleluia Ostersonntag'},
+  {file:'Offertorium Terra tremuit (Ostersonntag).pdf',pages:[3],key:'Terra tremuit',label:'Offertorium Ostersonntag'},
+  {file:'Communio Pascha nostrum (Ostersonntag).pdf',pages:[4],key:'Communio Pascha nostrum',label:'Communio Ostersonntag'}]},
+ {name:'1. Advent',src:'1hyXN2BBdoilYR5jjP5NLuN_Y1cRg1p4M',n:5,parts:[
+  {file:'Introitus Ad te levavi (1. Advent).pdf',pages:[0],key:'Ad te levavi animam meam',label:'Introitus 1. Advent'},
+  {file:'Graduale Universi qui te exspectant (1. Advent).pdf',pages:[1,2],key:'Universi qui te exspectant',label:'Graduale + Alleluia 1. Advent'},
+  {file:'Offertorium Ad te Domine levavi (1. Advent).pdf',pages:[3],key:'Ad te Domine levavi',label:'Offertorium 1. Advent'},
+  {file:'Communio Dominus dabit (1. Advent).pdf',pages:[4],key:'Dominus dabit benignitatem',label:'Communio 1. Advent'}]},
+ {name:'4. Advent (Rorate)',src:'11HetNqn0K0KG4ud8PwZS7jMdYbNSgjM-',n:5,parts:[
+  {file:'Introitus Rorate caeli (4. Advent).pdf',pages:[0],key:'Rorate caeli',label:'Introitus 4. Advent'},
+  {file:'Gloria Patri zum Introitus (4. Advent).pdf',pages:[1],key:'Rorate caeli',label:'Gloria Patri Introitus 4. Advent'},
+  {file:'Graduale Prope est Dominus + Alleluia Veni Domine (4. Advent).pdf',pages:[2],key:'Prope est Dominus',label:'Graduale + Alleluia 4. Advent'},
+  {file:'Offertorium Ave Maria (4. Advent).pdf',pages:[3],key:'Ave Maria',label:'Offertorium 4. Advent'},
+  {file:'Communio Ecce virgo concipiet (4. Advent).pdf',pages:[4],key:'Ecce virgo concipiet',label:'Communio 4. Advent'}]},
+ {name:'Reminiscere (Datei «Advent_2»)',src:'11nWU02NBL90XSW7Yoa9qJt3aIvxLGa1Q',n:5,parts:[
+  {file:'Introitus Reminiscere – Orgel (2. Fastensonntag).pdf',pages:[0,1],key:'Reminiscere miserationum tuarum',label:'Orgel Introitus 2. Fastensonntag'},
+  {file:'Offertorium Meditabor – Orgel (2. Fastensonntag).pdf',pages:[2],key:'Meditabor in mandatis tuis',label:'Orgel Offertorium 2. Fastensonntag'},
+  {file:'Communio Intellige clamorem – Orgel (2. Fastensonntag).pdf',pages:[3],key:'Intellige clamorem meum',label:'Orgel Communio 2. Fastensonntag'},
+  {file:'Communio Intellige clamorem (2. Fastensonntag).pdf',pages:[4],key:'Intellige clamorem meum',label:'Communio 2. Fastensonntag'}]},
+ {name:'3. Sonntag nach Erscheinung',src:'1RUhNbAIEm0RA7MCfQYkHDvMeDWFje9r-',n:7,parts:[
+  {file:'Introitus Adorate Deum (3. So. n. Epiphanie).pdf',pages:[0],key:'Adorate Deum',label:'Introitus 3. So. n. Epiphanie'},
+  {file:'Introitus Adorate Deum – Orgel (3. So. n. Epiphanie).pdf',pages:[1,2],key:'Adorate Deum',label:'Orgel Introitus 3. So. n. Epiphanie'},
+  {file:'Graduale Timuerunt gentes + Alleluia Dominus regnavit (3. So. n. Epiphanie).pdf',pages:[3],key:'Timuerunt gentes',label:'Graduale + Alleluia 3. So. n. Epiphanie'},
+  {file:'Offertorium Dextera Domini (3. So. n. Epiphanie).pdf',pages:[4],key:'Dextera Domini',label:'Offertorium 3. So. n. Epiphanie'},
+  {file:'Communio Mirabantur omnes (3. So. n. Epiphanie).pdf',pages:[5],key:'Mirabantur omnes',label:'Communio 3. So. n. Epiphanie'},
+  {file:'Communio Mirabantur omnes – Orgel (3. So. n. Epiphanie).pdf',pages:[6],key:'Mirabantur omnes',label:'Orgel Communio 3. So. n. Epiphanie'}]},
+ {name:'Rosenkranzsonntag',src:'1Rht5rrptUh33HCz_y2At05-sMwG3FY8T',n:5,parts:[
+  {file:'Introitus Gaudeamus (Rosenkranzsonntag).pdf',pages:[0],key:'Gaudeamus',label:'Introitus Rosenkranzsonntag'},
+  {file:'Graduale Propter veritatem (Rosenkranzsonntag).pdf',pages:[1],key:'Propter veritatem',label:'Graduale Rosenkranzsonntag'},
+  {file:'Alleluia Solemnitas gloriosae Virginis (Rosenkranzsonntag).pdf',pages:[2],key:'Solemnitas gloriosae Virginis',label:'Alleluia Rosenkranzsonntag'},
+  {file:'Offertorium In me gratia (Rosenkranzsonntag).pdf',pages:[3],key:'In me gratia',label:'Offertorium Rosenkranzsonntag'},
+  {file:'Communio Florete flores (Rosenkranzsonntag).pdf',pages:[4],key:'Florete flores',label:'Communio Rosenkranzsonntag'}]}];
 function loadPdfLib(){return window.PDFLib?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';s.onload=res;s.onerror=()=>rej(new Error('PDF-Bibliothek (pdf-lib) nicht ladbar'));document.head.appendChild(s)})}
-async function splitAllerheiligen(out){
+const splNrm=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function splFind(key){const k=splNrm(key),c=REG().filter(x=>x.art===SPL_ART&&!x.hide);
+  return c.find(x=>splNrm(x.orig)===k)||c.find(x=>splNrm(x.orig).startsWith(k))||null}
+async function splitSammel(out){
   const say=t=>{out.innerHTML+=esc(t)+'<br>'};
   out.innerHTML='';
   if(!GD.cached()){toast('Bitte zuerst oben mit Google anmelden');return}
   await GD.token(true); await loadPdfLib();
-  say('Lade Sammel-PDF …');
-  const bytes=new Uint8Array(await (await (await GD.fetch('https://www.googleapis.com/drive/v3/files/'+AH.src+'?alt=media',{},true)).blob()).arrayBuffer());
-  const src=await PDFLib.PDFDocument.load(bytes);
-  say('Seiten in der Quelle: '+src.getPageCount());
-  if(src.getPageCount()<5) throw new Error('Quelle hat weniger als 5 Seiten – Abbruch');
-  const mkRes=[];
-  for(const p of AH_PARTS){
-    const d=await PDFLib.PDFDocument.create(); const [pg]=await d.copyPages(src,[p.page]); d.addPage(pg);
-    if(p.y){const {width:w,height:h}=pg.getSize();const top=h*(1-p.y[0]),bot=h*(1-p.y[1]);pg.setMediaBox(0,bot,w,top-bot);pg.setCropBox(0,bot,w,top-bot)}
-    const data=await d.save();
-    const q=new URLSearchParams({q:"name='"+p.file.replace(/'/g,"\\'")+"' and '"+AH.folder+"' in parents and trashed=false",fields:'files(id)',pageSize:'1'});
-    const ex=((await (await GD.fetch('https://www.googleapis.com/drive/v3/files?'+q,{},true)).json()).files||[])[0];
-    let id;
-    if(ex){await GD.fetch('https://www.googleapis.com/upload/drive/v3/files/'+ex.id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/pdf'},body:new Blob([data],{type:'application/pdf'})},true);id=ex.id}
-    else{const b='spb'+Date.now();
-      const body=new Blob(['--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:p.file,parents:[AH.folder],mimeType:'application/pdf'})+'\r\n--'+b+'\r\nContent-Type: application/pdf\r\n\r\n',data,'\r\n--'+b+'--'],{type:'multipart/related; boundary='+b});
-      id=(await (await GD.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body},true)).json()).id}
-    say((ex?'aktualisiert: ':'gespeichert: ')+p.file);
-    mkRes.push({p,id})}
-  let made=0,linked=0;
-  for(const {p,id} of mkRes){
-    let r=REG().find(x=>x.art===AH.art&&x.orig===p.entry&&!x.hide)||REG().find(x=>x.art===AH.art&&x.orig===p.entry);
-    if(!r){S.custom.push({art:AH.art,nr:'',name:p.entry});dbPut('eigene',regKey(AH.art,'',p.entry),{art:AH.art,nr:'',name:p.entry});r=REG().find(x=>x.orig===p.entry);made++;say('Neuer Eintrag im Register: '+p.entry)}
-    const ob=S.reg[r.key]=S.reg[r.key]||{}; const l=parseLinks(r.cn||'');
-    if(!l.some(x=>x.u.includes(id))){l.push({l:p.label,u:fileUrl(id)});ob.cn=lnkStr(l);save();regPut(r.key);linked++}
-    say('verlinkt: '+p.label+' → '+r.name)}
+  let files=0,linked=0,made=0,fails=0;
+  for(const job of SPLITS){
+   try{
+    say('— '+job.name+': lade Sammel-PDF …');
+    const bytes=new Uint8Array(await (await (await GD.fetch('https://www.googleapis.com/drive/v3/files/'+job.src+'?alt=media',{},true)).blob()).arrayBuffer());
+    const src=await PDFLib.PDFDocument.load(bytes);
+    if(src.getPageCount()<job.n) throw new Error('Quelle hat '+src.getPageCount()+' statt mind. '+job.n+' Seiten – übersprungen');
+    const mkRes=[];
+    for(const p of job.parts){
+      const d=await PDFLib.PDFDocument.create(); const pgs=await d.copyPages(src,p.pages); pgs.forEach(pg=>d.addPage(pg));
+      if(p.y){const pg=pgs[0];const {width:w,height:h}=pg.getSize();const top=h*(1-p.y[0]),bot=h*(1-p.y[1]);pg.setMediaBox(0,bot,w,top-bot);pg.setCropBox(0,bot,w,top-bot)}
+      const data=await d.save();
+      const q=new URLSearchParams({q:"name='"+p.file.replace(/'/g,"\\'")+"' and '"+SPL_FOLDER+"' in parents and trashed=false",fields:'files(id)',pageSize:'1'});
+      const ex=((await (await GD.fetch('https://www.googleapis.com/drive/v3/files?'+q,{},true)).json()).files||[])[0];
+      let id;
+      if(ex){await GD.fetch('https://www.googleapis.com/upload/drive/v3/files/'+ex.id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/pdf'},body:new Blob([data],{type:'application/pdf'})},true);id=ex.id}
+      else{const b='spb'+Date.now();
+        const body=new Blob(['--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:p.file,parents:[SPL_FOLDER],mimeType:'application/pdf'})+'\r\n--'+b+'\r\nContent-Type: application/pdf\r\n\r\n',data,'\r\n--'+b+'--'],{type:'multipart/related; boundary='+b});
+        id=(await (await GD.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body},true)).json()).id}
+      say((ex?'aktualisiert: ':'gespeichert: ')+p.file); files++;
+      mkRes.push({p,id})}
+    for(const {p,id} of mkRes){
+      let r=splFind(p.key);
+      if(!r){const nm=p.entry||p.key;S.custom.push({art:SPL_ART,nr:'',name:nm});dbPut('eigene',regKey(SPL_ART,'',nm),{art:SPL_ART,nr:'',name:nm});r=REG().find(x=>x.art===SPL_ART&&x.orig===nm);made++;say('Neuer Eintrag im Register: '+nm)}
+      if(!r){say('! Kein Registereintrag für '+p.key);continue}
+      const ob=S.reg[r.key]=S.reg[r.key]||{}; const l=parseLinks(r.cn||'');
+      if(!l.some(x=>x.u.includes(id))){l.push({l:p.label,u:fileUrl(id)});ob.cn=lnkStr(l);save();regPut(r.key);linked++}
+      say('verlinkt: '+p.label+' → '+r.name)}
+   }catch(e){fails++;say('! '+job.name+': '+(e&&e.message||e))}
+  }
   for(const k in AUTO)delete AUTO[k];
-  toast(mkRes.length+' Dateien gespeichert, '+linked+' Links ergänzt'+(made?', '+made+' Eintrag neu':''));
+  toast(files+' Dateien gespeichert, '+linked+' Links ergänzt'+(made?', '+made+' Eintrag neu':'')+(fails?', '+fails+' Fehler':''));
 }
 
 /* --- Daten & Hilfe --- */
@@ -956,7 +1015,7 @@ function viewDaten(){
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="exp">Eigene Änderungen exportieren (JSON)</button>
      ${canEdit()?'<label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>':''}</div>
      <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
-   ${canEdit()?`<div class="card"><h2>Allerheiligen-PDF aufteilen (einmalig)</h2><p class="small">Teilt das Sammel-PDF «Allerheiligen» in 6 Einzel-PDFs (Introitus, Graduale, Alleluia, Offertorium, 2× Communio), legt sie im selben Drive-Ordner ab und ergänzt die Choral-Links der Gesänge. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>`:''}
+   ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
   </div><div>
    <div class="card"><h2>So funktioniert es</h2>
@@ -969,7 +1028,7 @@ function viewDaten(){
   </div></div>`;
 }
 function bindDaten(){
-  const ahb=$('#ahsplit'); if(ahb) ahb.onclick=async()=>{ahb.disabled=true;try{await splitAllerheiligen($('#ahres'))}catch(e){$('#ahres').innerHTML+='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}ahb.disabled=false};
+  const ahb=$('#ahsplit'); if(ahb) ahb.onclick=async()=>{ahb.disabled=true;try{await splitSammel($('#ahres'))}catch(e){$('#ahres').innerHTML+='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}ahb.disabled=false};
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
   const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);
