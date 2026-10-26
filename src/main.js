@@ -975,7 +975,12 @@ async function splitSammel(out){
   for(const job of SPLITS){
    try{
     say('— '+job.name+': lade Sammel-PDF …');
-    const bytes=new Uint8Array(await (await (await GD.fetch('https://www.googleapis.com/drive/v3/files/'+job.src+'?alt=media',{},true)).blob()).arrayBuffer());
+    let bytes=null,lastE=null;
+    for(let t=0;t<4&&!bytes;t++){try{if(t){say('  neuer Versuch ('+(t+1)+'/4) …');await new Promise(r=>setTimeout(r,1500*t))}
+      const rs=await GD.fetch('https://www.googleapis.com/drive/v3/files/'+job.src+'?alt=media',{},true);
+      if(!rs.ok)throw new Error('Drive-Antwort '+rs.status+(rs.status===404?' (Datei nicht gefunden/kein Zugriff)':''));
+      bytes=new Uint8Array(await (await rs.blob()).arrayBuffer())}catch(e){lastE=e}}
+    if(!bytes)throw new Error('Download fehlgeschlagen: '+(lastE&&lastE.message||lastE));
     const src=await PDFLib.PDFDocument.load(bytes);
     if(src.getPageCount()<job.n) throw new Error('Quelle hat '+src.getPageCount()+' statt mind. '+job.n+' Seiten – übersprungen');
     const mkRes=[];
