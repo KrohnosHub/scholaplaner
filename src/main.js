@@ -11,9 +11,10 @@ const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/
 const LS={get(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const S={tab:'kj',kj:'2026/27',q:'',art:'',status:'',unsure:false,sel:null,role:'org',
   termine:LS.get('sp.termine',{}),reg:LS.get('sp.reg',{}),custom:LS.get('sp.custom',[]),
-  month:String(new Date().getMonth()+1),prev:'lieder',organ:true,rq:'',rart:'',rfile:'',hq:'',hbook:'SR',hber:'',gst:{c:-1,d:1},gfl:[],lst:{c:-1,d:1},lfl:[],rhid:false,rdup:false,aq:'',aart:''};
+  month:String(new Date().getMonth()+1),prev:'schola',organ:LS.get('sp.organ',true),nver:LS.get('sp.nver',null),rq:'',rart:'',rfile:'',hq:'',hbook:'SR',hber:'',gst:{c:-1,d:1},gfl:[],lst:{c:-1,d:1},lfl:[],rhid:false,rdup:false,aq:'',aart:''};
 const save=()=>{LS.set('sp.termine',S.termine);LS.set('sp.reg',S.reg);LS.set('sp.custom',S.custom)};
 let READONLY=LS.get('sp.ro',false);
+const showNt=()=>S.nver===null?!READONLY:!!S.nver;
 const canEdit=()=>!READONLY,canSchola=()=>true,canOrgan=()=>true;
 /* ---------- Speicher: JSON-Datei in Google Drive (Notator-Ordner) ---------- */
 const ZNAME='Schola-Planer-Zustand.json', BNAME='Schola-Planer-Basis.json';
@@ -98,7 +99,7 @@ async function initDb(){
     try{await GD.token(true);await initDb.go()}catch(err){setSync(String(err&&err.message||err),true,true)}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&GD.cached()){pull().then(flush)}});
   setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
-  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();await flush();checkBasis()};
+  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis()};
   if(GD.cached()) initDb.go(); else setSync('Nicht angemeldet',true,true);
 }
 function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}
@@ -386,7 +387,7 @@ function viewTermin(){
         <button data-prev="lieder" aria-pressed="${S.prev==='lieder'}">Liederplan</button>
         ${canSchola()?`<button data-prev="schola" aria-pressed="${S.prev==='schola'}">Scholaplan</button>`:''}
       </div>
-      ${S.prev==='schola'&&canOrgan()?`<label class="small"><input type="checkbox" id="organ" ${S.organ?'checked':''}> Orgelnoten zeigen</label>`:''}
+      ${S.prev==='schola'?`<span style="display:flex;gap:12px;flex-wrap:wrap">${canOrgan()?`<label class="small"><input type="checkbox" id="organ" ${S.organ?'checked':''}> Orgelnoten</label>`:''}<label class="small"><input type="checkbox" id="nver" ${showNt()?'checked':''}> Notator-Versionen</label></span>`:''}
      </div>
      <div id="prev" style="margin-top:12px"></div>
      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
@@ -416,21 +417,28 @@ function drawRows(ev,t){
   buildCat();
   $('#edb').innerHTML=t.rows.map((r,i)=>{
     const d=ro?'disabled':'';
+    const hnr=r.k==='G'&&!r.b&&!r.n&&!r.v, ho=!r.o;
+    const mh=hnr?' mhid':'';
     return `<tr class="${r.k==='G'?'g':''}" data-i="${i}">
      <td class="c-pos"><input type="text" data-f="p" value="${esc(r.p)}" ${d}></td>
-     <td class="c-book"><select data-f="b" ${d}>${['','SR','Adoremus','Heft','Blatt','Zettel','OM'].map(x=>`<option value="${x}" ${r.b===x?'selected':''}>${x||'–'}</option>`).join('')}</select></td>
-     <td class="c-nr"><input type="text" data-f="n" value="${esc(r.n)}" ${d}></td>
-     <td class="c-v"><input type="text" data-f="v" value="${esc(r.v)}" ${d}></td>
+     <td class="c-book${mh}"><select data-f="b" ${d}>${['','SR','Adoremus','Heft','Blatt','Zettel','OM'].map(x=>`<option value="${x}" ${r.b===x?'selected':''}>${x||'–'}</option>`).join('')}</select></td>
+     <td class="c-nr${mh}"><input type="text" data-f="n" value="${esc(r.n)}" ${d}></td>
+     <td class="c-v${mh}"><input type="text" data-f="v" value="${esc(r.v)}" ${d}></td>
      <td class="c-t"><input type="text" data-f="t" value="${esc(r.t)}" ${r.k==='O'?'':'list="cat'+(r.k==='G'?'G':'L')+'" placeholder="Katalog durchsuchen oder frei eintippen"'} ${d}></td>
      <td class="c-k"><select data-f="k" ${d}><option value="L" ${r.k==='L'?'selected':''}>Lied</option><option value="G" ${r.k==='G'?'selected':''}>Schola</option><option value="O" ${r.k==='O'?'selected':''}>Orgel/Stille</option></select></td>
-     ${canOrgan()?`<td class="c-o"><input type="text" data-f="o" value="${esc(r.o)}" placeholder="Hinweis" ${d}></td>`:''}
-     <td class="c-x">${ro?'':`<span class="act-full"><button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button></span><details class="rmenu"><summary class="btn sm" aria-label="Zeilenmenü">⋯</summary><div class="rmp"><button class="btn sm" data-a="up" title="nach oben">↑</button><button class="btn sm" data-a="dn" title="nach unten">↓</button><button class="btn sm" data-a="del" title="Zeile löschen">✕</button></div></details>`}</td></tr>`;
+     ${canOrgan()?`<td class="c-o${ho?' mhid':''}"><input type="text" data-f="o" value="${esc(r.o)}" placeholder="Hinweis" ${d}></td>`:''}
+     <td class="c-x">${ro?'':`<span class="act-full"><button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button></span><details class="rmenu"><summary class="btn sm" aria-label="Zeilenmenü">⋯</summary><div class="rmp">${canOrgan()&&ho?'<button class="btn sm" data-a="sho">+ Hinweis</button>':''}${hnr?'<button class="btn sm" data-a="shnr">+ Nr.</button>':''}<button class="btn sm" data-a="up" title="nach oben">↑</button><button class="btn sm" data-a="dn" title="nach unten">↓</button><button class="btn sm" data-a="del" title="Zeile löschen">✕</button></div></details>`}</td></tr>`;
   }).join('')||`<tr><td colspan="8" class="muted" style="padding:10px">Keine Zeilen. Vorlage laden oder Zeile hinzufügen.</td></tr>`;
   let dl=document.getElementById('catdl'); if(!dl){dl=document.createElement('div');dl.id='catdl';document.body.appendChild(dl)}
   dl.innerHTML=`<datalist id="catG">${catOpts('G')}</datalist><datalist id="catL">${catOpts('L')}</datalist>`;
 }
 
 const POSS=['Introitus','Graduale/Alleluia','Offertorium','Communio','Einzug','Sonstiges'];
+function schPlanCard(ev,t){
+  const reg=REG(),g=t.rows.filter(r=>r.k==='G'&&(r.t||'').trim());
+  const li=g.map(r=>{const c=lookupChant(r,reg);const st=!c?'<span class="pill warn">nicht im Register</span>':(!c.cn&&!c.yt?'<span class="pill warn">Links fehlen</span>':'<span class="pill ok">verlinkt</span>');
+    return `<li>${esc(r.t)} <span class="muted small">· ${esc(r.p)}</span> ${st}</li>`}).join('');
+  return `<div class="card"><h3>Schola-Gesänge im Plan</h3>${li?`<ul class="small" style="margin:6px 0 0;padding-left:18px">${li}</ul>`:'<p class="small muted" style="margin:6px 0 0">Im Ablauf sind noch keine Schola-Gesänge (Typ «Schola») eingetragen.</p>'}</div>`}
 function regCard(ev,t){
   if(!ev.c) return '';
   const as=assignedTo(ev.c), dr=dropped(ev.c), ro=!canEdit();
@@ -460,7 +468,7 @@ function previewHTML(ev,t){
       const lk=[];
       if(c&&c.cn) lk.push(lnkHtml(lnkStr(linksFor(c.cn,r.p)),'Choral'));
       if(c&&c.yt) lk.push(lnkHtml(c.yt,'YouTube'));
-      if(c) lk.push(`<a href="${esc(ntUrl(c.name,c,r.p))}" target="_blank" rel="noopener">Notator</a>`);
+      if(c&&showNt()) lk.push(`<a href="${esc(ntUrl(c.name,c,r.p))}" target="_blank" rel="noopener">Notator</a>`);
       if(!c) lk.push('<span style="color:#a8322d">nicht im Register</span>');
       else if(!c.cn&&!c.yt) lk.push('<span style="color:#888">Links fehlen</span>');
       extra=`<span class="lk">${lk.join('')}</span>`;
@@ -531,13 +539,14 @@ function bindTermin(){
         return}
       if(e.target.dataset.f==='t'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const x=(CAT[r.k]||new Map()).get(e.target.value);if(x){r.t=x.t;if(r.k!=='G'){r.b=x.b;r.n=x.n;r.v=''}commit();drawRows(ev,t);pv()}return}if(e.target.dataset.f==='k'||e.target.dataset.f==='b'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;commit();drawRows(ev,t);pv()}};
     $('#edb').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=+b.closest('tr').dataset.i;
+      if(b.dataset.a==='sho'||b.dataset.a==='shnr'){const tr=b.closest('tr');tr.querySelectorAll(b.dataset.a==='sho'?'.c-o':'.c-book,.c-nr,.c-v').forEach(x=>x.classList.remove('mhid'));b.closest('details').open=false;const f=tr.querySelector(b.dataset.a==='sho'?'.c-o input':'.c-nr input');if(f)f.focus();return}
       if(b.dataset.a==='del')t.rows.splice(i,1);
       if(b.dataset.a==='up'&&i>0)[t.rows[i-1],t.rows[i]]=[t.rows[i],t.rows[i-1]];
       if(b.dataset.a==='dn'&&i<t.rows.length-1)[t.rows[i+1],t.rows[i]]=[t.rows[i],t.rows[i+1]];
       commit();drawRows(ev,t);pv()};
   }
 
-  const drawRegc=()=>{const e=$('#regc');if(e)e.innerHTML=regCard(ev,t)};drawRegc();
+  const drawRegc=()=>{const e=$('#regc');if(e)e.innerHTML=schPlanCard(ev,t)+(ev.c?regCard(ev,t):'<div class="card"><p class="small muted" style="margin:0">Diesem Termin ist kein Fest im Register zugeordnet.</p></div>')};drawRegc();
   const regc=$('#regc'); if(regc){
     regc.onclick=e=>{const b=e.target.closest('[data-add]');if(!b)return;const r=REG().find(x=>x.key===b.dataset.add);if(!r)return;
       insertChant(t.rows,r);if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();drawRegc()};
@@ -548,7 +557,8 @@ function bindTermin(){
       save();regPut(r.key);for(const k in AUTO)delete AUTO[k];
       const r2=REG().find(x=>x.key===r.key);insertChant(t.rows,r2);if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();drawRegc();toast('«'+r.name+'» ist jetzt «'+ev.c+'» zugeordnet')})}
   document.querySelectorAll('[data-prev]').forEach(b=>b.onclick=()=>{S.prev=b.dataset.prev;render()});
-  const og=$('#organ'); if(og) og.onchange=e=>{S.organ=e.target.checked;pv()};
+  const og=$('#organ'); if(og) og.onchange=e=>{S.organ=e.target.checked;LS.set('sp.organ',S.organ);pv()};
+  const nv=$('#nver'); if(nv) nv.onchange=e=>{S.nver=e.target.checked;LS.set('sp.nver',S.nver);pv()};
   $('#copy').onclick=async()=>{const tx=planText(ev,t);try{await navigator.clipboard.writeText(tx);toast('Liederplan kopiert')}catch(e){const ta=document.createElement('textarea');ta.value=tx;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Liederplan kopiert')}catch(_){toast('Kopieren nicht möglich')}ta.remove()}};
   $('#pdf').onclick=()=>makePdf(ev,t,S.prev==='schola'&&canSchola());
 }
@@ -615,7 +625,7 @@ async function makePdf(ev,t,intern){
     const lines=doc.setFont('times','normal').setFontSize(12).splitTextToSize(title,W-M-M-62);
     const c=intern&&isChant(r)?lookupChant(r,reg):null;
     const extra=[];
-    if(intern&&isChant(r)){ if(c&&c.cn)linksFor(c.cn,r.p).forEach((x,i,a)=>extra.push([x.l||(a.length>1?'Choral '+(i+1):'Choral'),x.u]));if(c)extra.push(['Notator',ntUrl(c.name,c,r.p)]); if(c&&c.yt)parseLinks(c.yt).forEach(x=>extra.push([x.l||'YouTube',x.u])); if(S.organ&&canOrgan()&&c&&c.on)linksFor(c.on,r.p).forEach((x,i,a)=>extra.push([x.l||'Orgel',x.u]));}
+    if(intern&&isChant(r)){ if(c&&c.cn)linksFor(c.cn,r.p).forEach((x,i,a)=>extra.push([x.l||(a.length>1?'Choral '+(i+1):'Choral'),x.u]));if(c&&showNt())extra.push(['Notator',ntUrl(c.name,c,r.p)]); if(c&&c.yt)parseLinks(c.yt).forEach(x=>extra.push([x.l||'YouTube',x.u])); if(S.organ&&canOrgan()&&c&&c.on)linksFor(c.on,r.p).forEach((x,i,a)=>extra.push([x.l||'Orgel',x.u]));}
     const orgn=intern&&S.organ&&canOrgan()&&r.o;
     pageBreak(lines.length*5.5+extra.length*0+(orgn?5:0)+6);
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(100);doc.text(lat(r.p).toUpperCase().slice(0,22),M,y);
@@ -1051,7 +1061,7 @@ function regFixes(say){
   if(g&&m){
     delL(g,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV'); delL(g,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX'); delL(g,'on','1stgZVmFNNHo6GTNyMMWzEPXd_D3QnE-p');
     {const gc=cur(g);if(gc.fe.includes('Rosenkranzsonntag')){ob(g).fe=gc.fe.filter(x=>x!=='Rosenkranzsonntag');put(g)}}
-    setNm(g,'Gaudeamus... Sanctorum omnium');
+    setNm(g,'Gaudeamus... omnium sanctorum');
     const lc=parseLinks(cur(g).cn||''),x=lc.find(y=>y.u.includes('18KCl-rAaPXHV46nr7TL6U2DAJFSx-2iy'));if(x&&x.l!=='Choral'){x.l='Choral';ob(g).cn=lnkStr(lc);put(g)}
     const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&y.l!=='Choral (aus Sammel-PDF)'){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
   /* Libera me (Requiem, Absolutio) */
