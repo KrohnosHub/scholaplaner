@@ -357,26 +357,29 @@ function viewTermin(){
   const dis=ro?'disabled':'';
   const tplOpts=(sugg.length?`<optgroup label="Passend zum Fest (${esc(ev.c||'')})">${sugg.map(p=>`<option value="${p.id}" ${t.tpl===p.id?'selected':''}>${esc(planLabel(p))}</option>`).join('')}</optgroup>`:'')
     +`<optgroup label="Anderer Festtyp"><option value="">– Festtyp wählen –</option>${CANONS.map(c=>`<option value="c:${esc(c)}">${esc(c)}</option>`).join('')}</optgroup>`;
-  return `<div class="grid2"><div>
+  return `<div class="grid2 tv" data-tsub="${S.tsub||'ablauf'}"><div>
    <div class="card">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" id="back">← Kirchenjahr</button>
      <h2 style="flex:1;min-width:200px"><span class="sw" style="--lc:${lcolor(ev)}"></span>${esc(ev.n)}</h2></div>
     <div class="muted" style="margin-top:4px">${wdOf(ev.d)}, ${fmtD(ev.d)} · ${esc(ev.a)}</div>
     ${ev.note?`<p class="note" style="margin:10px 0 0">${esc(ev.note)}</p>`:''}
     ${(()=>{const p=t.tpl&&planById[t.tpl];return p?`<p class="small muted" style="margin:10px 0 0">Vorlage: <a href="https://drive.google.com/file/d/${p.id}/view" target="_blank" rel="noopener">${esc(planLabel(p))}</a>${ev.act&&t.tpl===ev.act?' · tatsächlicher Plan aus dem Archiv':(t.tpl===ev.pid?' · Vorschlag aus dem Vorjahr':'')}</p>`:`<p class="small muted" style="margin:10px 0 0">Keine Vorlage zugeordnet. Festtyp unter «Vorlage laden» wählen.</p>`})()}
+    <details class="kopfd" id="kopfd" ${(S.kopf!==undefined?S.kopf:innerWidth>560)?'open':''}><summary>${esc(t.sch)} · ${esc(t.status)} · Einstellungen</summary>
     <div class="fields">
       <label><span>Schola</span><select id="sch" ${dis}>${['Männer','Frauen','Männer + Frauen','keine'].map(x=>`<option value="${x}" ${t.sch===x?'selected':''}>${x}${(t.vars&&t.vars[x]&&t.vars[x].rows&&t.vars[x].rows.length)?' ● Version':''}</option>`).join('')}</select></label>
       <label><span>Status</span><select id="st" ${dis}>${['offen','Vorschlag','Entwurf','fertig'].map(x=>`<option ${t.status===x?'selected':''}>${x}</option>`).join('')}</select></label>
       <label><span>Vorlage laden</span><select id="tpl" ${dis}>${tplOpts}</select></label>
     </div>
     ${ro?'':`<div class="fields"><label style="grid-column:1/-1"><span>Notiz zum Termin (intern)</span><input type="text" id="tnote" value="${esc(t.note)}"></label></div>`}
+    </details>
     ${t.rows.length||!ro?'':`<p class="muted">Noch kein Plan angelegt.</p>`}
    </div>
-   <div class="card"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h3>Ablauf</h3>${ro?'':`<span><button class="btn sm" id="addrow">+ Zeile</button> <button class="btn sm" id="addg">+ Schola-Gesang</button></span>`}</div>
+   <div class="seg tsw" role="tablist" aria-label="Bereich">${[['ablauf','Ablauf'],['schola','Schola'+(ev.c?' ('+assignedTo(ev.c).length+')':'')],['vorschau','Vorschau']].map(([k,l])=>`<button data-tsub="${k}" aria-pressed="${(S.tsub||'ablauf')===k}">${l}</button>`).join('')}</div>
+   <div class="card" data-sec="ablauf"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h3>Ablauf</h3>${ro?'':`<span><button class="btn sm" id="addrow">+ Zeile</button> <button class="btn sm" id="addg">+ Schola-Gesang</button></span>`}</div>
     <div class="rowsw"><table class="ed" id="ed"><thead><tr><th>Position</th><th>Buch</th><th>Nr.</th><th>Strophen</th><th>Titel / Incipit</th><th>Typ</th>${canOrgan()?'<th>Orgel</th>':''}<th></th></tr></thead><tbody id="edb"></tbody></table></div>
     <p class="hint">Typ «Schola» = Choralgesang (erscheint im Liederplan nur als Titel, im Scholaplan mit Links). Buch SR = Salve Regina (Standard).</p>
-   </div><div id="regc"></div></div>
-   <div>
+   </div><div id="regc" data-sec="schola"></div></div>
+   <div data-sec="vorschau">
     <div class="card">
      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
       <div class="seg" role="group" aria-label="Vorschau">
@@ -421,7 +424,7 @@ function drawRows(ev,t){
      <td class="c-t"><input type="text" data-f="t" value="${esc(r.t)}" ${r.k==='O'?'':'list="cat'+(r.k==='G'?'G':'L')+'" placeholder="Katalog durchsuchen oder frei eintippen"'} ${d}></td>
      <td class="c-k"><select data-f="k" ${d}><option value="L" ${r.k==='L'?'selected':''}>Lied</option><option value="G" ${r.k==='G'?'selected':''}>Schola</option><option value="O" ${r.k==='O'?'selected':''}>Orgel/Stille</option></select></td>
      ${canOrgan()?`<td class="c-o"><input type="text" data-f="o" value="${esc(r.o)}" placeholder="Hinweis" ${d}></td>`:''}
-     <td class="c-x">${ro?'':`<button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button>`}</td></tr>`;
+     <td class="c-x">${ro?'':`<span class="act-full"><button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button></span><details class="rmenu"><summary class="btn sm" aria-label="Zeilenmenü">⋯</summary><div class="rmp"><button class="btn sm" data-a="up" title="nach oben">↑</button><button class="btn sm" data-a="dn" title="nach unten">↓</button><button class="btn sm" data-a="del" title="Zeile löschen">✕</button></div></details>`}</td></tr>`;
   }).join('')||`<tr><td colspan="8" class="muted" style="padding:10px">Keine Zeilen. Vorlage laden oder Zeile hinzufügen.</td></tr>`;
   let dl=document.getElementById('catdl'); if(!dl){dl=document.createElement('div');dl.id='catdl';document.body.appendChild(dl)}
   dl.innerHTML=`<datalist id="catG">${catOpts('G')}</datalist><datalist id="catL">${catOpts('L')}</datalist>`;
@@ -491,6 +494,8 @@ function bindTermin(){
   const commit=()=>{if(canEdit()){if(t.rows.length){t.vars=t.vars||{};t.vars[t.sch]={rows:JSON.parse(JSON.stringify(t.rows)),tpl:t.tpl||''}}setTermin(ev,t)}};
   drawRows(ev,t); const pv=()=>{$('#prev').innerHTML=previewHTML(ev,t);$('#abg').innerHTML=abgCard(ev,t)}; pv();
   $('#back').onclick=()=>{S.tab='kj';render()};
+  document.querySelectorAll('[data-tsub]').forEach(b=>b.onclick=()=>{S.tsub=b.dataset.tsub;const tv=$('.tv');if(tv)tv.dataset.tsub=S.tsub;document.querySelectorAll('[data-tsub]').forEach(x=>{if(x.tagName==='BUTTON')x.setAttribute('aria-pressed',x.dataset.tsub===S.tsub)})});
+  const kd=$('#kopfd'); if(kd) kd.ontoggle=()=>{if(innerWidth<=560)S.kopf=kd.open};
   const sch=$('#sch'); if(sch){sch.onchange=async e=>{
       const to=e.target.value, from=t.sch; if(to===from) return;
       t.vars=t.vars||{};
