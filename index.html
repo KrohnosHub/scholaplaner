@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 14 -->
+<!-- Build 15 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -132,7 +132,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small>St. Pelagiberg · Liederpläne &amp; Choral · Build 14</small></div>
+    <div class="brand">Schola-Planer<small>St. Pelagiberg · Liederpläne &amp; Choral · Build 15</small></div>
     <div class="sync" id="sync" title="Speicherort der Änderungen">…</div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -257,6 +257,7 @@ function redraw(m){
   if(m.tt||m.tr||m.tc){
     if(m.tt){if(S.tab==='kj')drawList();else if(S.tab==='abg')render();else if(S.tab==='termin'&&!busy())render()}
     if((m.tr||m.tc)&&S.tab==='ges'&&!busy())drawGes();
+    if((m.tr||m.tc)&&!m.tt&&S.tab==='termin'&&!busy())render();
   }
 }
 async function pull(){

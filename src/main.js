@@ -49,6 +49,7 @@ function redraw(m){
   if(m.tt||m.tr||m.tc){
     if(m.tt){if(S.tab==='kj')drawList();else if(S.tab==='abg')render();else if(S.tab==='termin'&&!busy())render()}
     if((m.tr||m.tc)&&S.tab==='ges'&&!busy())drawGes();
+    if((m.tr||m.tc)&&!m.tt&&S.tab==='termin'&&!busy())render();
   }
 }
 async function pull(){
