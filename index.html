@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 28 -->
+<!-- Build 29 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -138,7 +138,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small>St. Pelagiberg · Liederpläne &amp; Choral · Build 28</small></div>
+    <div class="brand">Schola-Planer<small>St. Pelagiberg · Liederpläne &amp; Choral · Build 29</small></div>
     <div class="sync" id="sync" title="Speicherort der Änderungen">…</div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -1121,7 +1121,7 @@ const SPL_ART='Schola-Gesang (Proprium/Choral)', SPL_FOLDER='1na4i6KGlePisA8ENF0
 /* part: file (Drive-Name), pages (0-basiert), y (optionaler vertikaler Ausschnitt 0..1), key (Registereintrag, Anfang des Incipits), entry (Name, falls neu), label (Linkname) */
 const SPLITS=[
  {name:'Allerheiligen',src:'14u80_mC95i_qz-Ff85zwTri_i-1IcGE3',n:5,parts:[
-  {file:'Gaudeamus omnes in Domino (Allerheiligen) – Choral.pdf',old:['Introitus Gaudeamus (Allerheiligen).pdf','Gaudeamus omnes in Domino (Allerheiligen, Introitus) – Choral.pdf'],pos:'Introitus',fest:'Allerheiligen (1.11.)',pages:[0],key:'Gaudeamus',label:'Introitus Allerheiligen'},
+  {file:'Gaudeamus... Sanctorum omnium (aus Sammel-PDF) – Choral.pdf',old:['Introitus Gaudeamus (Allerheiligen).pdf','Gaudeamus omnes in Domino (Allerheiligen, Introitus) – Choral.pdf','Gaudeamus omnes in Domino (Allerheiligen) – Choral.pdf'],pos:'Introitus',fest:'Allerheiligen (1.11.)',pages:[0],key:'Gaudeamus',label:'Introitus Allerheiligen'},
   {file:'Timete Dominum – Choral.pdf',old:['Graduale Timete Dominum (Allerheiligen).pdf','Timete Dominum (Allerheiligen, Graduale) – Choral.pdf','Timete Dominum omnes sancti eius (Allerheiligen, Graduale) – Choral.pdf'],pos:'Graduale / Alleluia / Sequenz',fest:'Allerheiligen (1.11.)',pages:[1],y:[0,AH_CUT],key:'Timete Dominum',entry:'Timete Dominum…',label:'Graduale Allerheiligen'},
   {file:'Venite ad me – Choral.pdf',old:['Alleluia Venite ad me (Allerheiligen).pdf','Venite ad me (Allerheiligen, Alleluia) – Choral.pdf','Venite ad me omnes (Allerheiligen, Alleluia) – Choral.pdf'],pos:'Graduale / Alleluia / Sequenz',fest:'Allerheiligen (1.11.)',pages:[1],y:[AH_CUT,1],key:'Timete Dominum',entry:'Timete Dominum…',label:'Alleluia Allerheiligen'},
   {file:'Justorum animae – Choral.pdf',old:['Offertorium Justorum animae (Allerheiligen).pdf','Justorum animae (Allerheiligen, Offertorium) – Choral.pdf'],pos:'Offertorium',fest:'Allerheiligen (1.11.)',pages:[2],key:'Justorum animae',label:'Offertorium Allerheiligen'},
@@ -1172,7 +1172,7 @@ const SPLITS=[
   {file:'Mirabantur omnes – Choral.pdf',old:['Mirabantur omnes (3. So. n. Epiphanie, Communio) – Choral.pdf'],pos:'Communio',fest:'3. So. n. Epiphanie',pages:[5],key:'Mirabantur omnes',label:'Communio 3. So. n. Epiphanie'},
   {file:'Mirabantur omnes – Orgel.pdf',old:['Mirabantur omnes (3. So. n. Epiphanie, Communio) – Orgel.pdf'],pos:'Communio',fest:'3. So. n. Epiphanie',pages:[6],key:'Mirabantur omnes',label:'Orgel Communio 3. So. n. Epiphanie'}]},
  {name:'Rosenkranzsonntag',src:'1Rht5rrptUh33HCz_y2At05-sMwG3FY8T',n:5,parts:[
-  {file:'Gaudeamus omnes in Domino (Rosenkranzsonntag) – Choral.pdf',old:['Gaudeamus (Rosenkranzsonntag, Introitus) – Choral.pdf','Gaudeamus omnes in Domino (Rosenkranzsonntag, Introitus) – Choral.pdf'],pos:'Introitus',fest:'Rosenkranzsonntag',pages:[0],key:'Gaudeamus',label:'Introitus Rosenkranzsonntag'},
+  {file:'Gaudeamus... Mariae... solemnitate (aus Sammel-PDF) – Choral.pdf',old:['Gaudeamus (Rosenkranzsonntag, Introitus) – Choral.pdf','Gaudeamus omnes in Domino (Rosenkranzsonntag, Introitus) – Choral.pdf','Gaudeamus omnes in Domino (Rosenkranzsonntag) – Choral.pdf'],pos:'Introitus',fest:'Rosenkranzsonntag',pages:[0],key:'Gaudeamus... Mariae... solemnitate',entry:'Gaudeamus... Mariae... solemnitate',label:'Introitus Rosenkranzsonntag'},
   {file:'Propter veritatem – Choral.pdf',old:['Propter veritatem (Rosenkranzsonntag, Graduale) – Choral.pdf','Propter veritatem et mansuetudinem (Rosenkranzsonntag, Graduale) – Choral.pdf'],pos:'Graduale / Alleluia / Sequenz',fest:'Rosenkranzsonntag',pages:[1],key:'Propter veritatem',label:'Graduale Rosenkranzsonntag'},
   {file:'Solemnitas gloriosae Virginis – Choral.pdf',old:['Solemnitas gloriosae Virginis (Rosenkranzsonntag, Alleluia) – Choral.pdf','Solemnitas gloriosae Virginis Mariae (Rosenkranzsonntag, Alleluia) – Choral.pdf'],pos:'Graduale / Alleluia / Sequenz',fest:'Rosenkranzsonntag',pages:[2],key:'Solemnitas gloriosae Virginis',label:'Alleluia Rosenkranzsonntag'},
   {file:'In me gratia – Choral.pdf',old:['In me gratia (Rosenkranzsonntag, Offertorium) – Choral.pdf','In me gratia omnis viae (Rosenkranzsonntag, Offertorium) – Choral.pdf'],pos:'Offertorium',fest:'Rosenkranzsonntag',pages:[3],key:'In me gratia',label:'Offertorium Rosenkranzsonntag'},
@@ -1185,6 +1185,7 @@ async function splitSammel(out){
   const say=t=>{out.innerHTML+=esc(t)+'<br>'};
   out.innerHTML='';
   if(!GD.cached()){toast('Bitte zuerst oben mit Google anmelden');return}
+  regFixes(say);
   await GD.token(true); await loadPdfLib();
   let files=0,linked=0,made=0,fails=0;
   for(const job of SPLITS){
@@ -1231,6 +1232,43 @@ async function splitSammel(out){
 }
 
 
+
+/* ---------- Register-Korrekturen (idempotent): Gaudeamus trennen, Libera me ---------- */
+function regFixes(say){
+  say=say||(()=>{});
+  const A=SPL_ART, id=(u)=>(/\/d\/([\w-]+)/.exec(u)||[])[1]||'';
+  const mk=(name)=>{let r=REG().find(x=>x.art===A&&x.orig===name);
+    if(!r){S.custom.push({art:A,nr:'',name});dbPut('eigene',regKey(A,'',name),{art:A,nr:'',name});r=REG().find(x=>x.art===A&&x.orig===name);say('Neuer Eintrag im Register: '+name)}return r};
+  const ob=r=>S.reg[r.key]=S.reg[r.key]||{};
+  const put=r=>{save();regPut(r.key)};
+  const cur=r=>REG().find(x=>x.key===r.key)||r;
+  const addL=(r,f,fid,label)=>{r=cur(r);const o=ob(r),l=parseLinks(r[f]||'');
+    if(l.some(x=>x.u.includes(fid))){const x=l.find(y=>y.u.includes(fid));if(x.l!==label){x.l=label;o[f]=lnkStr(l);put(r)}return}
+    l.push({l:label,u:fileUrl(fid)});o[f]=lnkStr(l);put(r);say('verlinkt: '+label+' → '+r.name)};
+  const delL=(r,f,fid)=>{r=cur(r);const l=parseLinks(r[f]||'');if(!l.some(x=>x.u.includes(fid)))return;const o=ob(r);
+    const n=l.filter(x=>!x.u.includes(fid));o[f]=n.length?lnkStr(n):'-';put(r)};
+  const setNm=(r,nm)=>{r=cur(r);const o=ob(r);if(r.name!==nm){o.nm=nm;put(r)}};
+  const setTags=(r,po,fe)=>{r=cur(r);const o=ob(r);if(!r.po){o.po=po;put(r)}if(!r.fx&&!r.fe.length){o.fe=fe;put(r)}};
+  /* Gaudeamus: Allerheiligen (Basis-Zeile) und Rosenkranzsonntag (Mariae solemnitate) getrennt */
+  const g=REG().find(x=>x.art===A&&x.orig==='Gaudeamus'&&x.base);
+  const m=mk('Gaudeamus... Mariae... solemnitate');
+  if(m){setTags(m,'Introitus',['Rosenkranzsonntag']);
+    addL(m,'cn','1epAsdtbJGpQuS8GLdGq40IyPrj6my4vW','Choral');
+    addL(m,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV','Choral (aus Sammel-PDF)');
+    addL(m,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX','Orgel');
+    if(!cur(m).nt&&!ob(m).nt){ob(m).nt=fileUrl('1ADz1Zq_pOOXVWF2bwYE9rjloxmAYqkUO');put(m)}}
+  if(g&&m){
+    delL(g,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV'); delL(g,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX');
+    {const gc=cur(g);if(gc.fe.includes('Rosenkranzsonntag')){ob(g).fe=gc.fe.filter(x=>x!=='Rosenkranzsonntag');put(g)}}
+    setNm(g,'Gaudeamus... Sanctorum omnium');
+    const lc=parseLinks(cur(g).cn||''),x=lc.find(y=>y.u.includes('18KCl-rAaPXHV46nr7TL6U2DAJFSx-2iy'));if(x&&x.l!=='Choral'){x.l='Choral';ob(g).cn=lnkStr(lc);put(g)}
+    const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&y.l!=='Choral (aus Sammel-PDF)'){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
+  /* Libera me (Requiem, Absolutio) */
+  let lm=REG().find(x=>x.art===A&&x.orig==='Libera me')||REG().find(x=>x.art===A&&x.orig==='Libera me, Domine, de morte aeterna');
+  if(!lm)lm=mk('Libera me');
+  if(lm){setNm(lm,'Libera me');setTags(lm,'Responsorium',['Requiem','Allerseelen (2.11.)'])}
+}
+
 /* ---------- Einmalig: bisher unverlinkte Dateien des Hauptordners im Register verlinken / Einträge anlegen ---------- */
 const AS='Schola-Gesang (Proprium/Choral)', AO='Ordinarium / Credo / Asperges', AG='Gregorianische Gesänge (SR 410–500)';
 const FLINKS=[
@@ -1272,11 +1310,11 @@ const FLINKS=[
  ['1tUGNEJ7bCKqosThnAYvS_DbWeIf43vfL',AG,'Tantum ergo V (SR 464)','Tantum ergo V','on','Orgel','SR 464'],
  ['1li597MceuUcO8UYCFsXFSBAuoz5cpNQF',AG,'Tantum ergo IX (SR 468)','Tantum ergo IX','on','Orgel','SR 468'],
  ['1kEHh--ELs-71TP84CkrFtuxsZzoZJrUx',AG,'Tantum ergo X (SR 469)','Tantum ergo X','on','Orgel','SR 469'],
- ['15C05enKcdTcgkFN1rM7s3fBYjkFktfZd',AS,'Libera me, Domine, de morte aeterna','','on','Orgel'],
- ['1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX',AS,'Gaudeamus','','on','Orgel (Mariae solemnitate)']];
+ ['15C05enKcdTcgkFN1rM7s3fBYjkFktfZd',AS,'Libera me','Libera me','on','Orgel']];
 async function linkFolderFiles(out){
   const say=t=>{out.innerHTML+=esc(t)+'<br>'};
   out.innerHTML=''; let made=0,linked=0;
+  regFixes(say);
   for(const [id,art,key,entry,f,label,nr,pos,fest] of FLINKS){
     const k=splNrm(key),c=REG().filter(x=>x.art===art&&!x.hide);
     let r=c.find(x=>splNrm(x.orig)===k)||c.find(x=>splNrm(x.orig).startsWith(k))||c.find(x=>{const o=splNrm(x.orig);return o.length>=7&&k.startsWith(o)});
