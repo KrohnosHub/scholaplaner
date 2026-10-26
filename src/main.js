@@ -906,62 +906,62 @@ const SPL_ART='Schola-Gesang (Proprium/Choral)', SPL_FOLDER='1na4i6KGlePisA8ENF0
 /* part: file (Drive-Name), pages (0-basiert), y (optionaler vertikaler Ausschnitt 0..1), key (Registereintrag, Anfang des Incipits), entry (Name, falls neu), label (Linkname) */
 const SPLITS=[
  {name:'Allerheiligen',src:'14u80_mC95i_qz-Ff85zwTri_i-1IcGE3',n:5,parts:[
-  {file:'Introitus Gaudeamus (Allerheiligen).pdf',pages:[0],key:'Gaudeamus',label:'Introitus Allerheiligen'},
-  {file:'Graduale Timete Dominum (Allerheiligen).pdf',pages:[1],y:[0,AH_CUT],key:'Timete Dominum',entry:'Timete Dominum…',label:'Graduale Allerheiligen'},
-  {file:'Alleluia Venite ad me (Allerheiligen).pdf',pages:[1],y:[AH_CUT,1],key:'Timete Dominum',entry:'Timete Dominum…',label:'Alleluia Allerheiligen'},
-  {file:'Offertorium Justorum animae (Allerheiligen).pdf',pages:[2],key:'Justorum animae',label:'Offertorium Allerheiligen'},
-  {file:'Communio Beati mundo corde (Allerheiligen).pdf',pages:[3],key:'Beati mundo corde',label:'Communio Allerheiligen'},
-  {file:'Communio Beati mundo corde – Psalmton (Allerheiligen).pdf',pages:[4],key:'Beati mundo corde',label:'Communio Psalmton Allerheiligen'}]},
+  {file:'Gaudeamus omnes in Domino (Allerheiligen, Introitus) – Choral.pdf',old:'Introitus Gaudeamus (Allerheiligen).pdf',pages:[0],key:'Gaudeamus',label:'Introitus Allerheiligen'},
+  {file:'Timete Dominum (Allerheiligen, Graduale) – Choral.pdf',old:'Graduale Timete Dominum (Allerheiligen).pdf',pages:[1],y:[0,AH_CUT],key:'Timete Dominum',entry:'Timete Dominum…',label:'Graduale Allerheiligen'},
+  {file:'Venite ad me (Allerheiligen, Alleluia) – Choral.pdf',old:'Alleluia Venite ad me (Allerheiligen).pdf',pages:[1],y:[AH_CUT,1],key:'Timete Dominum',entry:'Timete Dominum…',label:'Alleluia Allerheiligen'},
+  {file:'Justorum animae (Allerheiligen, Offertorium) – Choral.pdf',old:'Offertorium Justorum animae (Allerheiligen).pdf',pages:[2],key:'Justorum animae',label:'Offertorium Allerheiligen'},
+  {file:'Beati mundo corde (Allerheiligen, Communio) – Choral.pdf',old:'Communio Beati mundo corde (Allerheiligen).pdf',pages:[3],key:'Beati mundo corde',label:'Communio Allerheiligen'},
+  {file:'Beati mundo corde (Allerheiligen, Communio Psalmton) – Choral.pdf',old:'Communio Beati mundo corde – Psalmton (Allerheiligen).pdf',pages:[4],key:'Beati mundo corde',label:'Communio Psalmton Allerheiligen'}]},
  {name:'Weihnachten (Tagesmesse)',src:'1xH5_bUPGZfKuZs5Tg9moIvGfhXgWuXkU',n:7,parts:[
-  {file:'Introitus Puer natus est (Weihnachten Tagesmesse).pdf',pages:[0],key:'Puer natus est nobis',label:'Introitus Weihnachten Tagesmesse'},
-  {file:'Introitus Puer natus est – Orgel (Weihnachten Tagesmesse).pdf',pages:[1,2],key:'Puer natus est nobis',label:'Orgel Introitus Weihnachten Tagesmesse'},
-  {file:'Graduale Viderunt omnes (Weihnachten Tagesmesse).pdf',pages:[3],key:'Viderunt omnes (Graduale)',label:'Graduale Weihnachten Tagesmesse'},
-  {file:'Alleluia Dies sanctificatus (Weihnachten Tagesmesse).pdf',pages:[4],key:'Dies sanctificatus (Alleluia)',label:'Alleluia Weihnachten Tagesmesse'},
-  {file:'Offertorium Tui sunt caeli (Weihnachten Tagesmesse).pdf',pages:[5],key:'Tui sunt caeli',label:'Offertorium Weihnachten Tagesmesse'},
-  {file:'Communio Viderunt omnes (Weihnachten Tagesmesse).pdf',pages:[6],key:'Viderunt omnes (Communio)',label:'Communio Weihnachten Tagesmesse'}]},
+  {file:'Puer natus est nobis (Weihnachten Tagesmesse, Introitus) – Choral.pdf',pages:[0],key:'Puer natus est nobis',label:'Introitus Weihnachten Tagesmesse'},
+  {file:'Puer natus est nobis (Weihnachten Tagesmesse, Introitus) – Orgel.pdf',pages:[1,2],key:'Puer natus est nobis',label:'Orgel Introitus Weihnachten Tagesmesse'},
+  {file:'Viderunt omnes (Weihnachten Tagesmesse, Graduale) – Choral.pdf',pages:[3],key:'Viderunt omnes (Graduale)',label:'Graduale Weihnachten Tagesmesse'},
+  {file:'Dies sanctificatus (Weihnachten Tagesmesse, Alleluia) – Choral.pdf',pages:[4],key:'Dies sanctificatus (Alleluia)',label:'Alleluia Weihnachten Tagesmesse'},
+  {file:'Tui sunt caeli (Weihnachten Tagesmesse, Offertorium) – Choral.pdf',pages:[5],key:'Tui sunt caeli',label:'Offertorium Weihnachten Tagesmesse'},
+  {file:'Viderunt omnes (Weihnachten Tagesmesse, Communio) – Choral.pdf',pages:[6],key:'Viderunt omnes (Communio)',label:'Communio Weihnachten Tagesmesse'}]},
  {name:'Gründonnerstag',src:'1evG3ruL8DFI3sbIT_NZmacHs156wJWb5',n:6,parts:[
-  {file:'Introitus Nos autem gloriari (Gründonnerstag).pdf',pages:[0],key:'Nos autem gloriari',label:'Introitus Gründonnerstag'},
-  {file:'Introitus Nos autem gloriari – Orgel (Gründonnerstag).pdf',pages:[1,2],key:'Nos autem gloriari',label:'Orgel Introitus Gründonnerstag'},
-  {file:'Graduale Christus factus est (Gründonnerstag).pdf',pages:[3,4],key:'Christus factus est',label:'Graduale Gründonnerstag'},
-  {file:'Offertorium Dextera Domini (Gründonnerstag).pdf',pages:[5],key:'Dextera Domini',label:'Offertorium Gründonnerstag'}]},
+  {file:'Nos autem gloriari (Gründonnerstag, Introitus) – Choral.pdf',pages:[0],key:'Nos autem gloriari',label:'Introitus Gründonnerstag'},
+  {file:'Nos autem gloriari (Gründonnerstag, Introitus) – Orgel.pdf',pages:[1,2],key:'Nos autem gloriari',label:'Orgel Introitus Gründonnerstag'},
+  {file:'Christus factus est (Gründonnerstag, Graduale) – Choral.pdf',pages:[3,4],key:'Christus factus est',label:'Graduale Gründonnerstag'},
+  {file:'Dextera Domini (Gründonnerstag, Offertorium) – Choral.pdf',pages:[5],key:'Dextera Domini',label:'Offertorium Gründonnerstag'}]},
  {name:'Osternacht',src:'1KzjRHltKasJv1p7dHnWxu508CUFwaD1x',n:5,parts:[
-  {file:'Cantica nach den Lesungen (Osternacht).pdf',pages:[0],key:'Cantemus Domino (Osternacht)',label:'Cantica Osternacht'},
-  {file:'Alleluia (Osternacht).pdf',pages:[1],key:'Alleluia Osternacht',label:'Alleluia Osternacht'},
-  {file:'Et valde mane + Benedictus (Osternacht).pdf',pages:[4],key:'Et valde mane',label:'Benedictus Osternacht'}]},
+  {file:'Cantemus Domino (Osternacht, Cantica) – Choral.pdf',pages:[0],key:'Cantemus Domino (Osternacht)',label:'Cantica Osternacht'},
+  {file:'Alleluia (Osternacht) – Choral.pdf',pages:[1],key:'Alleluia Osternacht',label:'Alleluia Osternacht'},
+  {file:'Et valde mane (Osternacht, Benedictus-Antiphon) – Choral.pdf',pages:[4],key:'Et valde mane',label:'Benedictus Osternacht'}]},
  {name:'Ostersonntag',src:'1VMcqgRFTQfOSKttA_Dqhi71ko4Mdo3TL',n:5,parts:[
-  {file:'Graduale Haec dies (Ostersonntag).pdf',pages:[1],key:'Haec dies',label:'Graduale Ostersonntag'},
-  {file:'Alleluia Pascha nostrum (Ostersonntag).pdf',pages:[2],key:'Alleluia Pascha nostrum',label:'Alleluia Ostersonntag'},
-  {file:'Offertorium Terra tremuit (Ostersonntag).pdf',pages:[3],key:'Terra tremuit',label:'Offertorium Ostersonntag'},
-  {file:'Communio Pascha nostrum (Ostersonntag).pdf',pages:[4],key:'Communio Pascha nostrum',label:'Communio Ostersonntag'}]},
+  {file:'Haec dies (Ostersonntag, Graduale) – Choral.pdf',pages:[1],key:'Haec dies',label:'Graduale Ostersonntag'},
+  {file:'Pascha nostrum (Ostersonntag, Alleluia) – Choral.pdf',pages:[2],key:'Alleluia Pascha nostrum',label:'Alleluia Ostersonntag'},
+  {file:'Terra tremuit (Ostersonntag, Offertorium) – Choral.pdf',pages:[3],key:'Terra tremuit',label:'Offertorium Ostersonntag'},
+  {file:'Pascha nostrum (Ostersonntag, Communio) – Choral.pdf',pages:[4],key:'Communio Pascha nostrum',label:'Communio Ostersonntag'}]},
  {name:'1. Advent',src:'1hyXN2BBdoilYR5jjP5NLuN_Y1cRg1p4M',n:5,parts:[
-  {file:'Introitus Ad te levavi (1. Advent).pdf',pages:[0],key:'Ad te levavi animam meam',label:'Introitus 1. Advent'},
-  {file:'Graduale Universi qui te exspectant (1. Advent).pdf',pages:[1,2],key:'Universi qui te exspectant',label:'Graduale + Alleluia 1. Advent'},
-  {file:'Offertorium Ad te Domine levavi (1. Advent).pdf',pages:[3],key:'Ad te Domine levavi',label:'Offertorium 1. Advent'},
-  {file:'Communio Dominus dabit (1. Advent).pdf',pages:[4],key:'Dominus dabit benignitatem',label:'Communio 1. Advent'}]},
+  {file:'Ad te levavi (1. Advent, Introitus) – Choral.pdf',pages:[0],key:'Ad te levavi animam meam',label:'Introitus 1. Advent'},
+  {file:'Universi qui te exspectant (1. Advent, Graduale + Alleluia) – Choral.pdf',pages:[1,2],key:'Universi qui te exspectant',label:'Graduale + Alleluia 1. Advent'},
+  {file:'Ad te Domine levavi (1. Advent, Offertorium) – Choral.pdf',pages:[3],key:'Ad te Domine levavi',label:'Offertorium 1. Advent'},
+  {file:'Dominus dabit (1. Advent, Communio) – Choral.pdf',pages:[4],key:'Dominus dabit benignitatem',label:'Communio 1. Advent'}]},
  {name:'4. Advent (Rorate)',src:'11HetNqn0K0KG4ud8PwZS7jMdYbNSgjM-',n:5,parts:[
-  {file:'Introitus Rorate caeli (4. Advent).pdf',pages:[0],key:'Rorate caeli',label:'Introitus 4. Advent'},
-  {file:'Gloria Patri zum Introitus (4. Advent).pdf',pages:[1],key:'Rorate caeli',label:'Gloria Patri Introitus 4. Advent'},
-  {file:'Graduale Prope est Dominus + Alleluia Veni Domine (4. Advent).pdf',pages:[2],key:'Prope est Dominus',label:'Graduale + Alleluia 4. Advent'},
-  {file:'Offertorium Ave Maria (4. Advent).pdf',pages:[3],key:'Ave Maria',label:'Offertorium 4. Advent'},
-  {file:'Communio Ecce virgo concipiet (4. Advent).pdf',pages:[4],key:'Ecce virgo concipiet',label:'Communio 4. Advent'}]},
+  {file:'Rorate caeli (4. Advent, Introitus) – Choral.pdf',pages:[0],key:'Rorate caeli',label:'Introitus 4. Advent'},
+  {file:'Rorate caeli (4. Advent, Gloria Patri Introitus) – Choral.pdf',pages:[1],key:'Rorate caeli',label:'Gloria Patri Introitus 4. Advent'},
+  {file:'Prope est Dominus (4. Advent, Graduale + Alleluia) – Choral.pdf',pages:[2],key:'Prope est Dominus',label:'Graduale + Alleluia 4. Advent'},
+  {file:'Ave Maria (4. Advent, Offertorium) – Choral.pdf',pages:[3],key:'Ave Maria',label:'Offertorium 4. Advent'},
+  {file:'Ecce virgo concipiet (4. Advent, Communio) – Choral.pdf',pages:[4],key:'Ecce virgo concipiet',label:'Communio 4. Advent'}]},
  {name:'Reminiscere (Datei «Advent_2»)',src:'11nWU02NBL90XSW7Yoa9qJt3aIvxLGa1Q',n:5,parts:[
-  {file:'Introitus Reminiscere – Orgel (2. Fastensonntag).pdf',pages:[0,1],key:'Reminiscere miserationum tuarum',label:'Orgel Introitus 2. Fastensonntag'},
-  {file:'Offertorium Meditabor – Orgel (2. Fastensonntag).pdf',pages:[2],key:'Meditabor in mandatis tuis',label:'Orgel Offertorium 2. Fastensonntag'},
-  {file:'Communio Intellige clamorem – Orgel (2. Fastensonntag).pdf',pages:[3],key:'Intellige clamorem meum',label:'Orgel Communio 2. Fastensonntag'},
-  {file:'Communio Intellige clamorem (2. Fastensonntag).pdf',pages:[4],key:'Intellige clamorem meum',label:'Communio 2. Fastensonntag'}]},
+  {file:'Reminiscere (2. Fastensonntag, Introitus) – Orgel.pdf',pages:[0,1],key:'Reminiscere miserationum tuarum',label:'Orgel Introitus 2. Fastensonntag'},
+  {file:'Meditabor (2. Fastensonntag, Offertorium) – Orgel.pdf',pages:[2],key:'Meditabor in mandatis tuis',label:'Orgel Offertorium 2. Fastensonntag'},
+  {file:'Intellige clamorem (2. Fastensonntag, Communio) – Orgel.pdf',pages:[3],key:'Intellige clamorem meum',label:'Orgel Communio 2. Fastensonntag'},
+  {file:'Intellige clamorem (2. Fastensonntag, Communio) – Choral.pdf',pages:[4],key:'Intellige clamorem meum',label:'Communio 2. Fastensonntag'}]},
  {name:'3. Sonntag nach Erscheinung',src:'1RUhNbAIEm0RA7MCfQYkHDvMeDWFje9r-',n:7,parts:[
-  {file:'Introitus Adorate Deum (3. So. n. Epiphanie).pdf',pages:[0],key:'Adorate Deum',label:'Introitus 3. So. n. Epiphanie'},
-  {file:'Introitus Adorate Deum – Orgel (3. So. n. Epiphanie).pdf',pages:[1,2],key:'Adorate Deum',label:'Orgel Introitus 3. So. n. Epiphanie'},
-  {file:'Graduale Timuerunt gentes + Alleluia Dominus regnavit (3. So. n. Epiphanie).pdf',pages:[3],key:'Timuerunt gentes',label:'Graduale + Alleluia 3. So. n. Epiphanie'},
-  {file:'Offertorium Dextera Domini (3. So. n. Epiphanie).pdf',pages:[4],key:'Dextera Domini',label:'Offertorium 3. So. n. Epiphanie'},
-  {file:'Communio Mirabantur omnes (3. So. n. Epiphanie).pdf',pages:[5],key:'Mirabantur omnes',label:'Communio 3. So. n. Epiphanie'},
-  {file:'Communio Mirabantur omnes – Orgel (3. So. n. Epiphanie).pdf',pages:[6],key:'Mirabantur omnes',label:'Orgel Communio 3. So. n. Epiphanie'}]},
+  {file:'Adorate Deum (3. So. n. Epiphanie, Introitus) – Choral.pdf',pages:[0],key:'Adorate Deum',label:'Introitus 3. So. n. Epiphanie'},
+  {file:'Adorate Deum (3. So. n. Epiphanie, Introitus) – Orgel.pdf',pages:[1,2],key:'Adorate Deum',label:'Orgel Introitus 3. So. n. Epiphanie'},
+  {file:'Timuerunt gentes (3. So. n. Epiphanie, Graduale + Alleluia) – Choral.pdf',pages:[3],key:'Timuerunt gentes',label:'Graduale + Alleluia 3. So. n. Epiphanie'},
+  {file:'Dextera Domini (3. So. n. Epiphanie, Offertorium) – Choral.pdf',pages:[4],key:'Dextera Domini',label:'Offertorium 3. So. n. Epiphanie'},
+  {file:'Mirabantur omnes (3. So. n. Epiphanie, Communio) – Choral.pdf',pages:[5],key:'Mirabantur omnes',label:'Communio 3. So. n. Epiphanie'},
+  {file:'Mirabantur omnes (3. So. n. Epiphanie, Communio) – Orgel.pdf',pages:[6],key:'Mirabantur omnes',label:'Orgel Communio 3. So. n. Epiphanie'}]},
  {name:'Rosenkranzsonntag',src:'1Rht5rrptUh33HCz_y2At05-sMwG3FY8T',n:5,parts:[
-  {file:'Introitus Gaudeamus (Rosenkranzsonntag).pdf',pages:[0],key:'Gaudeamus',label:'Introitus Rosenkranzsonntag'},
-  {file:'Graduale Propter veritatem (Rosenkranzsonntag).pdf',pages:[1],key:'Propter veritatem',label:'Graduale Rosenkranzsonntag'},
-  {file:'Alleluia Solemnitas gloriosae Virginis (Rosenkranzsonntag).pdf',pages:[2],key:'Solemnitas gloriosae Virginis',label:'Alleluia Rosenkranzsonntag'},
-  {file:'Offertorium In me gratia (Rosenkranzsonntag).pdf',pages:[3],key:'In me gratia',label:'Offertorium Rosenkranzsonntag'},
-  {file:'Communio Florete flores (Rosenkranzsonntag).pdf',pages:[4],key:'Florete flores',label:'Communio Rosenkranzsonntag'}]}];
+  {file:'Gaudeamus (Rosenkranzsonntag, Introitus) – Choral.pdf',pages:[0],key:'Gaudeamus',label:'Introitus Rosenkranzsonntag'},
+  {file:'Propter veritatem (Rosenkranzsonntag, Graduale) – Choral.pdf',pages:[1],key:'Propter veritatem',label:'Graduale Rosenkranzsonntag'},
+  {file:'Solemnitas gloriosae Virginis (Rosenkranzsonntag, Alleluia) – Choral.pdf',pages:[2],key:'Solemnitas gloriosae Virginis',label:'Alleluia Rosenkranzsonntag'},
+  {file:'In me gratia (Rosenkranzsonntag, Offertorium) – Choral.pdf',pages:[3],key:'In me gratia',label:'Offertorium Rosenkranzsonntag'},
+  {file:'Florete flores (Rosenkranzsonntag, Communio) – Choral.pdf',pages:[4],key:'Florete flores',label:'Communio Rosenkranzsonntag'}]}];
 function loadPdfLib(){return window.PDFLib?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';s.onload=res;s.onerror=()=>rej(new Error('PDF-Bibliothek (pdf-lib) nicht ladbar'));document.head.appendChild(s)})}
 const splNrm=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 function splFind(key){const k=splNrm(key),c=REG().filter(x=>x.art===SPL_ART&&!x.hide);
@@ -984,13 +984,14 @@ async function splitSammel(out){
       if(p.y){const pg=pgs[0];const {width:w,height:h}=pg.getSize();const top=h*(1-p.y[0]),bot=h*(1-p.y[1]);pg.setMediaBox(0,bot,w,top-bot);pg.setCropBox(0,bot,w,top-bot)}
       const data=await d.save();
       const q=new URLSearchParams({q:"name='"+p.file.replace(/'/g,"\\'")+"' and '"+SPL_FOLDER+"' in parents and trashed=false",fields:'files(id)',pageSize:'1'});
-      const ex=((await (await GD.fetch('https://www.googleapis.com/drive/v3/files?'+q,{},true)).json()).files||[])[0];
+      let ex=((await (await GD.fetch('https://www.googleapis.com/drive/v3/files?'+q,{},true)).json()).files||[])[0],ren=false;
+      if(!ex&&p.old){const q2=new URLSearchParams({q:"name='"+p.old.replace(/'/g,"\\'")+"' and '"+SPL_FOLDER+"' in parents and trashed=false",fields:'files(id)',pageSize:'1'});ex=((await (await GD.fetch('https://www.googleapis.com/drive/v3/files?'+q2,{},true)).json()).files||[])[0];if(ex){await GD.fetch('https://www.googleapis.com/drive/v3/files/'+ex.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:p.file})},true);ren=true}}
       let id;
       if(ex){await GD.fetch('https://www.googleapis.com/upload/drive/v3/files/'+ex.id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/pdf'},body:new Blob([data],{type:'application/pdf'})},true);id=ex.id}
       else{const b='spb'+Date.now();
         const body=new Blob(['--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:p.file,parents:[SPL_FOLDER],mimeType:'application/pdf'})+'\r\n--'+b+'\r\nContent-Type: application/pdf\r\n\r\n',data,'\r\n--'+b+'--'],{type:'multipart/related; boundary='+b});
         id=(await (await GD.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body},true)).json()).id}
-      say((ex?'aktualisiert: ':'gespeichert: ')+p.file); files++;
+      say((ren?'umbenannt: ':ex?'aktualisiert: ':'gespeichert: ')+p.file); files++;
       mkRes.push({p,id})}
     for(const {p,id} of mkRes){
       let r=splFind(p.key);
