@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 21 -->
+<!-- Build 22 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -132,7 +132,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small>St. Pelagiberg · Liederpläne &amp; Choral · Build 21</small></div>
+    <div class="brand">Schola-Planer<small>St. Pelagiberg · Liederpläne &amp; Choral · Build 22</small></div>
     <div class="sync" id="sync" title="Speicherort der Änderungen">…</div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -1219,6 +1219,61 @@ async function splitSammel(out){
   toast(files+' Dateien gespeichert, '+linked+' Links ergänzt'+(made?', '+made+' Eintrag neu':'')+(fails?', '+fails+' Fehler':''));
 }
 
+
+/* ---------- Einmalig: bisher unverlinkte Dateien des Hauptordners im Register verlinken / Einträge anlegen ---------- */
+const AS='Schola-Gesang (Proprium/Choral)', AO='Ordinarium / Credo / Asperges', AG='Gregorianische Gesänge (SR 410–500)';
+const FLINKS=[
+ ['1cFMp_1Mkf69_KMQPwS37RC8tJhH8MCfu',AS,'Ave maris stella','','cn','Choral'],
+ ['1VGHrf785jtJxu22GUrC1GsRueDNJrULh',AS,'Ave maris stella','','cn','Choral (feierlich)'],
+ ['1o-bVptz3AZDm8uDA6zYrPUY4cKdjKXWv',AS,'Ave maris stella','','cn','Choral (per annum, einfach)'],
+ ['1i-MFalF77e3671SJqX8NLgDWKxff1iJP',AS,'Dies irae','','cn','Choral'],
+ ['1mGQx9QCHW9DSsvU5ZT_y0Hl4auFWer30',AS,'Gloria et honore','','cn','Choral'],
+ ['1aXEKTR07a47G-mtalfQMPwODLi8tKJox',AS,'Jubilate Deo','','cn','Choral'],
+ ['1X6eKdvsj2qY5veUGqzuBrpCNYuV1OZn0',AS,'Modicum','','cn','Choral'],
+ ['1WVZoaFrcmRxjrjB54wrTvs1hCzVJdog4',AS,'Laetentur caeli','','cn','Choral'],
+ ['1dbjGAAJNfCjDbHa7iS_Ls2Gi6ljq8Sft',AS,'Magnificat','','cn','Choral'],
+ ['1wnupCKLrZhoZmNR9yaFjlAoBpxGiOTsF',AS,'Te Deum (simplex)','','cn','Choral'],
+ ['1kx2uS3LxA3QICEUeajklVpGzEEAeahud',AS,'Tota pulchra','','cn','Choral'],
+ ['1hCGXh-WTxYEmwa6xzTmLv2eU25kqmVtY',AS,'Veni, veni Emmanuel','','cn','Choral'],
+ ['1f9HG1aFRuDc8YaDY2XVguLYvgql9a1Kw',AS,'Taufgesang – Die ihr auf Christus seid getauft','','cn','Choral'],
+ ['18Mwx-bmk3jifx9J0C1eKKXf6MW5KFpUY',AS,'Johannes-Passion (Karfreitag, deutsch)','','cn','Choral'],
+ ['15XNBkwzT1KC1b7QYpCuHlJVheFYXQ1tA',AS,'Scapulis suis','','cn','Choral'],
+ ['18CxRqX6MQDyP_KCg-X53E-IPQa0FW8bx',AS,'Sedebit','','cn','Choral'],
+ ['1HXB9Qy_pvWTLUalJYXn60A9M-88SJI7-',AS,'Unus militum','','cn','Choral'],
+ ['1bXIaeRWkkSipklNoYRtqw9MjoJVGs3HK',AS,'Cibavit eos','','cn','Choral'],
+ ['1YBp7ntrZDt2jDq6aSiEDqa9aiNY4VFIE',AS,'Inimicitias','','cn','Choral'],
+ ['11eb1GiN__82MW1Nbqioqr4Vw5ZNQZ81v',AS,'Dicite pusillanimes','','cn','Choral'],
+ ['1zergqcS1WGhviGb_IX3sZxa1csz4v_cR',AS,'Cogitationes','','cn','Choral'],
+ ['1akxrWUrGJGOuByTPnjLsoSd-sfvtgpCv',AS,'Christus vincit','','cn','Choral'],
+ ['1o1kT68IVNAnHfnbXxLaJ8o4HqOTRttJI',AS,'Hodie sci','Hodie sciétis','cn','Choral'],
+ ['1TpfnrNKtSwjkJljx4LdT7dRtOrA_J7OF',AS,'Audi filia','Audi filia et vide','cn','Choral (Mariä Himmelfahrt)'],
+ ['197VhDhLo5JXB_Ej92OfYzhg0F9FBT_aX',AS,'Alleluia Pfingsten','','cn','Choral'],
+ ['1K1bqRmou69XjhRsj20MW_518TmLrsEf1',AS,'Alleluia Pfingsten','','cn','Choral (mit Satz vor Sequenz)'],
+ ['1LE54OPjpm6MOv2VkjvabAHRiEIAG6iDV',AS,'Alleluia Pfingsten','','on','Orgel (mit Satz vor Sequenz)'],
+ ['1za094brElVp7PzO2VIcYk_ZOTKecZcdx',AS,'Rorate caeli','','on','Orgel Introitus'],
+ ['1lmmwSwhV75bwsLBH6KVDRzEODkE97apw',AS,'Ecce virgo concip','','on','Orgel Communio'],
+ ['1V5O1VPYyHD8l6eOiVH354pfrlS8TK6MQ',AS,'Prope est Dominus','','on','Orgel Alleluia'],
+ ['1s4Q15Lk4vrxC16fUccEqz0EVNR-ytC_o',AS,'Prope est Dominus','','on','Orgel Zwischengesänge'],
+ ['1dddUZ7xJmbXu9aztz75OhBJgRNrbbP1s',AO,'Ite missa est, alleluja','','cn','Choral'],
+ ['1gsxQEaLGuZ0Ui42tsCXn1z8O8ixAhFUX',AO,'Benedictus qui venit','','cn','Choral'],
+ ['1W4XhaQX1ssLV7U3Pe4WSrCQEBotKwrm8',AO,'Credo IV','','on','Orgel','SR 428'],
+ ['1pNg5OY8cV6yVxR5TycY17lYbJ0Ix-s1J',AG,'Salve Regina 1 (solemnis)','','cn','Choral','SR 480']];
+async function linkFolderFiles(out){
+  const say=t=>{out.innerHTML+=esc(t)+'<br>'};
+  out.innerHTML=''; let made=0,linked=0;
+  for(const [id,art,key,entry,f,label,nr] of FLINKS){
+    const k=splNrm(key),c=REG().filter(x=>x.art===art&&!x.hide);
+    let r=c.find(x=>splNrm(x.orig)===k)||c.find(x=>splNrm(x.orig).startsWith(k))||c.find(x=>{const o=splNrm(x.orig);return o.length>=7&&k.startsWith(o)});
+    if(!r){const nm=entry||key;S.custom.push({art,nr:nr||'',name:nm});dbPut('eigene',regKey(art,nr||'',nm),{art,nr:nr||'',name:nm});r=REG().find(x=>x.art===art&&x.orig===nm);made++;say('Neuer Eintrag im Register: '+nm)}
+    if(!r){say('! Kein Eintrag für '+key);continue}
+    const ob=S.reg[r.key]=S.reg[r.key]||{}; const l=parseLinks(r[f]||'');
+    if(l.some(x=>x.u.includes(id))){continue}
+    l.push({l:label,u:fileUrl(id)}); ob[f]=lnkStr(l); save(); regPut(r.key); linked++;
+    say('verlinkt: '+label+' → '+r.name)}
+  for(const k in AUTO)delete AUTO[k];
+  say(linked+' Links ergänzt, '+made+' Einträge neu.'); toast(linked+' Links ergänzt'+(made?', '+made+' Einträge neu':''));
+}
+
 /* --- Daten & Hilfe --- */
 function viewDaten(){
   const nT=Object.keys(S.termine).length;
@@ -1229,7 +1284,8 @@ function viewDaten(){
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="exp">Eigene Änderungen exportieren (JSON)</button>
      ${canEdit()?'<label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>':''}</div>
      <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
-   ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>`:''}
+   ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>
+   <div class="card"><h2>Ordner-Dateien verlinken</h2><p class="small">Verlinkt PDFs aus dem Drive-Hauptordner, die noch bei keinem Gesang hinterlegt sind (ca. 35), und legt dafür fehlende Einträge an. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="lnksplit">Nachtragen</button><div class="small" id="lnkres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
   </div><div>
    <div class="card"><h2>So funktioniert es</h2>
@@ -1242,6 +1298,7 @@ function viewDaten(){
   </div></div>`;
 }
 function bindDaten(){
+  const lnb=$('#lnksplit'); if(lnb) lnb.onclick=async()=>{lnb.disabled=true;try{await linkFolderFiles($('#lnkres'))}catch(e){$('#lnkres').innerHTML+='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}lnb.disabled=false};
   const ahb=$('#ahsplit'); if(ahb) ahb.onclick=async()=>{ahb.disabled=true;try{await splitSammel($('#ahres'))}catch(e){$('#ahres').innerHTML+='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}ahb.disabled=false};
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
