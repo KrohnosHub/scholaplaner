@@ -1054,7 +1054,12 @@ const FLINKS=[
  ['1dddUZ7xJmbXu9aztz75OhBJgRNrbbP1s',AO,'Ite missa est, alleluja','','cn','Choral'],
  ['1gsxQEaLGuZ0Ui42tsCXn1z8O8ixAhFUX',AO,'Benedictus qui venit','','cn','Choral'],
  ['1W4XhaQX1ssLV7U3Pe4WSrCQEBotKwrm8',AO,'Credo IV','','on','Orgel','SR 428'],
- ['1pNg5OY8cV6yVxR5TycY17lYbJ0Ix-s1J',AG,'Salve Regina 1 (solemnis)','','cn','Choral','SR 480']];
+ ['1pNg5OY8cV6yVxR5TycY17lYbJ0Ix-s1J',AG,'Salve Regina 1 (solemnis)','','cn','Choral','SR 480'],
+ ['1tUGNEJ7bCKqosThnAYvS_DbWeIf43vfL',AG,'Tantum ergo V (SR 464)','Tantum ergo V','on','Orgel','SR 464'],
+ ['1li597MceuUcO8UYCFsXFSBAuoz5cpNQF',AG,'Tantum ergo IX (SR 468)','Tantum ergo IX','on','Orgel','SR 468'],
+ ['1kEHh--ELs-71TP84CkrFtuxsZzoZJrUx',AG,'Tantum ergo X (SR 469)','Tantum ergo X','on','Orgel','SR 469'],
+ ['15C05enKcdTcgkFN1rM7s3fBYjkFktfZd',AS,'Libera me, Domine, de morte aeterna','','on','Orgel'],
+ ['1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX',AS,'Gaudeamus','','on','Orgel (Mariae solemnitate)']];
 async function linkFolderFiles(out){
   const say=t=>{out.innerHTML+=esc(t)+'<br>'};
   out.innerHTML=''; let made=0,linked=0;
@@ -1084,7 +1089,7 @@ function viewDaten(){
      ${canEdit()?'<label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>':''}</div>
      <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
    ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>
-   <div class="card"><h2>Ordner-Dateien verlinken</h2><p class="small">Verlinkt PDFs aus dem Drive-Hauptordner, die noch bei keinem Gesang hinterlegt sind (ca. 35), und legt dafür fehlende Einträge an. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="lnksplit">Nachtragen</button><div class="small" id="lnkres" style="margin-top:8px"></div></div>`:''}
+   <div class="card"><h2>Ordner-Dateien verlinken</h2><p class="small">Verlinkt PDFs aus dem Drive-Hauptordner, die noch bei keinem Gesang hinterlegt sind (ca. 40), und legt dafür fehlende Einträge an. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="lnksplit">Nachtragen</button><div class="small" id="lnkres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
   </div><div>
    <div class="card"><h2>So funktioniert es</h2>
