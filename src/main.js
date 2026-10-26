@@ -199,7 +199,7 @@ const ntMid=u=>{const m=/\/d\/([\w-]{15,})|[?&]id=([\w-]{15,})|^([\w-]{25,})$/.e
 /* nt: eine Datei (URL/ID) oder «Teil|URL ; Teil|URL» (z. B. Kyrie, Gloria …) */
 const ntParse=s=>String(s||'').split(/\s*;\s*/).map(x=>x.trim()).filter(Boolean).map(x=>{const i=x.indexOf('|');const l=i>0&&!/^https?:/.test(x.slice(0,i))?x.slice(0,i).trim():'';const u=(l?x.slice(i+1):x).trim();return ntMid(u)?{l,u}:null}).filter(Boolean);
 const ntStr=l=>l.map(x=>(x.l?x.l+'|':'')+x.u).join(' ; ');
-const PART_RANK=[/introit/i,/kyrie/i,/gloria/i,/graduale|tractus|absolve/i,/sequenz|dies irae/i,/credo/i,/offert/i,/sanctus/i,/agnus/i,/communio|kommunion/i,/^ite\b/i];
+const PART_RANK=[/introit/i,/kyrie/i,/gloria/i,/graduale|tractus|absolve|alleluia/i,/sequenz|dies irae/i,/credo/i,/offert/i,/sanctus/i,/agnus/i,/communio|kommunion/i,/^ite\b/i];
 const partRank=l=>{const i=PART_RANK.findIndex(r=>r.test(l||''));return i};
 const sortParts=a=>a.map((x,i)=>({x,i,r:partRank(x.l)})).sort((p,q)=>p.r-q.r||p.i-q.i).map(p=>p.x);
 const NT_LAB=/\.notator|Notator-Datei/i;
@@ -900,6 +900,52 @@ function drawArch(){
 function bindArch(){drawArch();$('#aq').oninput=e=>{S.aq=e.target.value;drawArch()};
   $('#al').onclick=e=>{const b=e.target.closest('button[data-p]');if(!b)return;const ev=evByKey[S.sel];const t=getTermin(ev);applyTemplate(ev,t,b.dataset.p);setTermin(ev,t);S.tab='termin';render();toast('Vorlage geladen')}}
 
+
+/* ---------- Einmalig: Sammel-PDF «Allerheiligen» in Einzel-PDFs aufteilen, in Drive ablegen, im Register verlinken ---------- */
+const AH={src:'14u80_mC95i_qz-Ff85zwTri_i-1IcGE3',folder:'1na4i6KGlePisA8ENF0tQU6mOdrBnd_PO',cut:0.5103,art:'Schola-Gesang (Proprium/Choral)'};
+const AH_PARTS=[
+ {file:'Introitus Gaudeamus (Allerheiligen).pdf',page:0,entry:'Gaudeamus',label:'Introitus Allerheiligen'},
+ {file:'Graduale Timete Dominum (Allerheiligen).pdf',page:1,y:[0,AH.cut],entry:'Timete Dominum…',label:'Graduale Allerheiligen'},
+ {file:'Alleluia Venite ad me (Allerheiligen).pdf',page:1,y:[AH.cut,1],entry:'Timete Dominum…',label:'Alleluia Allerheiligen'},
+ {file:'Offertorium Justorum animae (Allerheiligen).pdf',page:2,entry:'Justorum animae',label:'Offertorium Allerheiligen'},
+ {file:'Communio Beati mundo corde (Allerheiligen).pdf',page:3,entry:'Beati mundo corde',label:'Communio Allerheiligen'},
+ {file:'Communio Beati mundo corde – Psalmton (Allerheiligen).pdf',page:4,entry:'Beati mundo corde',label:'Communio Psalmton Allerheiligen'}];
+function loadPdfLib(){return window.PDFLib?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';s.onload=res;s.onerror=()=>rej(new Error('PDF-Bibliothek (pdf-lib) nicht ladbar'));document.head.appendChild(s)})}
+async function splitAllerheiligen(out){
+  const say=t=>{out.innerHTML+=esc(t)+'<br>'};
+  out.innerHTML='';
+  if(!GD.cached()){toast('Bitte zuerst oben mit Google anmelden');return}
+  await GD.token(true); await loadPdfLib();
+  say('Lade Sammel-PDF …');
+  const bytes=new Uint8Array(await (await (await GD.fetch('https://www.googleapis.com/drive/v3/files/'+AH.src+'?alt=media',{},true)).blob()).arrayBuffer());
+  const src=await PDFLib.PDFDocument.load(bytes);
+  say('Seiten in der Quelle: '+src.getPageCount());
+  if(src.getPageCount()<5) throw new Error('Quelle hat weniger als 5 Seiten – Abbruch');
+  const mkRes=[];
+  for(const p of AH_PARTS){
+    const d=await PDFLib.PDFDocument.create(); const [pg]=await d.copyPages(src,[p.page]); d.addPage(pg);
+    if(p.y){const {width:w,height:h}=pg.getSize();const top=h*(1-p.y[0]),bot=h*(1-p.y[1]);pg.setMediaBox(0,bot,w,top-bot);pg.setCropBox(0,bot,w,top-bot)}
+    const data=await d.save();
+    const q=new URLSearchParams({q:"name='"+p.file.replace(/'/g,"\\'")+"' and '"+AH.folder+"' in parents and trashed=false",fields:'files(id)',pageSize:'1'});
+    const ex=((await (await GD.fetch('https://www.googleapis.com/drive/v3/files?'+q,{},true)).json()).files||[])[0];
+    let id;
+    if(ex){await GD.fetch('https://www.googleapis.com/upload/drive/v3/files/'+ex.id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/pdf'},body:new Blob([data],{type:'application/pdf'})},true);id=ex.id}
+    else{const b='spb'+Date.now();
+      const body=new Blob(['--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:p.file,parents:[AH.folder],mimeType:'application/pdf'})+'\r\n--'+b+'\r\nContent-Type: application/pdf\r\n\r\n',data,'\r\n--'+b+'--'],{type:'multipart/related; boundary='+b});
+      id=(await (await GD.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body},true)).json()).id}
+    say((ex?'aktualisiert: ':'gespeichert: ')+p.file);
+    mkRes.push({p,id})}
+  let made=0,linked=0;
+  for(const {p,id} of mkRes){
+    let r=REG().find(x=>x.art===AH.art&&x.orig===p.entry&&!x.hide)||REG().find(x=>x.art===AH.art&&x.orig===p.entry);
+    if(!r){S.custom.push({art:AH.art,nr:'',name:p.entry});dbPut('eigene',regKey(AH.art,'',p.entry),{art:AH.art,nr:'',name:p.entry});r=REG().find(x=>x.orig===p.entry);made++;say('Neuer Eintrag im Register: '+p.entry)}
+    const ob=S.reg[r.key]=S.reg[r.key]||{}; const l=parseLinks(r.cn||'');
+    if(!l.some(x=>x.u.includes(id))){l.push({l:p.label,u:fileUrl(id)});ob.cn=lnkStr(l);save();regPut(r.key);linked++}
+    say('verlinkt: '+p.label+' → '+r.name)}
+  for(const k in AUTO)delete AUTO[k];
+  toast(mkRes.length+' Dateien gespeichert, '+linked+' Links ergänzt'+(made?', '+made+' Eintrag neu':''));
+}
+
 /* --- Daten & Hilfe --- */
 function viewDaten(){
   const nT=Object.keys(S.termine).length;
@@ -910,6 +956,7 @@ function viewDaten(){
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="exp">Eigene Änderungen exportieren (JSON)</button>
      ${canEdit()?'<label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>':''}</div>
      <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
+   ${canEdit()?`<div class="card"><h2>Allerheiligen-PDF aufteilen (einmalig)</h2><p class="small">Teilt das Sammel-PDF «Allerheiligen» in 6 Einzel-PDFs (Introitus, Graduale, Alleluia, Offertorium, 2× Communio), legt sie im selben Drive-Ordner ab und ergänzt die Choral-Links der Gesänge. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
   </div><div>
    <div class="card"><h2>So funktioniert es</h2>
@@ -922,6 +969,7 @@ function viewDaten(){
   </div></div>`;
 }
 function bindDaten(){
+  const ahb=$('#ahsplit'); if(ahb) ahb.onclick=async()=>{ahb.disabled=true;try{await splitAllerheiligen($('#ahres'))}catch(e){$('#ahres').innerHTML+='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}ahb.disabled=false};
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
   const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);
