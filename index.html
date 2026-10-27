@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 35 -->
+<!-- Build 36 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -169,7 +169,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 35</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 36</small></div>
     <div class="sync" id="sync" title="Speicherort der Änderungen">…</div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -400,7 +400,11 @@ const posClass=p=>{p=norm(p);return /introit|lntroit|int?roitus/.test(p)?'int':/
 const cleanName=n=>norm(String(n||'').replace(/\(.*?\)/g,' ').replace(/\b(Männerschola|Frauenschola|Schola)\b/gi,' '));
 const sameT=(t,n)=>{const a=cleanName(t),b=cleanName(n);return a.length>=5&&b.length>=5&&(a===b||a.startsWith(b)||b.startsWith(a))};
 const chantPos=r=>String(r.po||'').split(/\s*[\/,]\s*/)[0]||'Communio';
-const assignedTo=c=>c?REG().filter(r=>!r.hide&&r.fx&&r.fe.includes(c)):[];
+/* Reihenfolge nach Messordnung */
+const MESS=[/einzug/,/introit|int?roitus/,/kyrie/,/gloria/,/gradual|allelu|tractus|sequenz/,/credo/,/predigt/,/offert|opfer/,/sanctus/,/agnus/,/commun|kommun/,/dank/,/ite missa|schluss/,/auszug/];
+const messRank=p=>{p=String(p||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const i=MESS.findIndex(x=>x.test(p));return i<0?4.5:i};
+const byMess=(a,b)=>messRank(chantPos(a))-messRank(chantPos(b));
+const assignedTo=c=>c?REG().filter(r=>!r.hide&&r.fx&&r.fe.includes(c)).sort(byMess):[];
 const dropped=c=>c?REG().filter(r=>!r.hide&&r.fx&&r.fe0.includes(c)&&!r.fe.includes(c)):[];
 function insertChant(rows,r){
   const cls=posClass(chantPos(r)); const title=r.name;
@@ -680,7 +684,7 @@ function drawRows(ev,t){
 
 const POSS=['Introitus','Graduale/Alleluia','Offertorium','Communio','Einzug','Sonstiges'];
 function schPlanCard(ev,t){
-  const reg=REG(),g=t.rows.filter(r=>r.k==='G'&&(r.t||'').trim());
+  const reg=REG(),g=t.rows.map((r,i)=>[r,i]).filter(x=>x[0].k==='G'&&(x[0].t||'').trim()).sort((a,b)=>messRank(a[0].p)-messRank(b[0].p)||a[1]-b[1]).map(x=>x[0]);
   const li=g.map(r=>{const c=lookupChant(r,reg);const st=!c?'<span class="pill warn">nicht im Register</span>':(!c.cn&&!c.yt?'<span class="pill warn">Links fehlen</span>':'<span class="pill ok">verlinkt</span>');
     return `<li>${esc(r.t)} <span class="muted small">· ${esc(r.p)}</span> ${st}</li>`}).join('');
   return `<div class="card"><h3>Schola-Gesänge im Plan</h3>${li?`<ul class="small" style="margin:6px 0 0;padding-left:18px">${li}</ul>`:'<p class="small muted" style="margin:6px 0 0">Im Ablauf sind noch keine Schola-Gesänge (Typ «Schola») eingetragen.</p>'}</div>`}
@@ -1311,6 +1315,10 @@ function regFixes(say){
     const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&y.l!=='Choral (aus Sammel-PDF)'){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
   /* Allerheiligen: nur dort getaggte Gesänge als feste Zuordnung (Override) führen, damit sie im Schola-Reiter / bei neuen Plänen erscheinen */
   REG().filter(x=>x.art===A&&!x.hide&&!x.fx&&x.fe.length===1&&x.fe[0]==='Allerheiligen (1.11.)').forEach(x=>{ob(x).fe=['Allerheiligen (1.11.)'];put(x);say('Allerheiligen zugeordnet: '+x.name)});
+  /* gespeicherte Pläne: alter Gaudeamus-Titel */
+  for(const k in S.termine){const t=S.termine[k];if(!t||!Array.isArray(t.rows))continue;let ch=false;
+    t.rows.forEach(r=>{if(r&&r.t&&/^Gaudeamus\.\.\. (omnium sanctorum|Sanctorum omnium)$/.test(r.t.trim())){r.t='Gaudeamus... sanctorum omnium';ch=true}});
+    if(ch){save();dbPut('termine',k)}}
   /* Adorémus in aetérnum: Allerheiligen-Tag war falsch (steht in keinem Allerheiligen-Plan) */
   REG().filter(x=>x.art===A&&/^Adorémus in aetérnum/i.test(x.orig)&&x.fe.includes('Allerheiligen (1.11.)')).forEach(x=>{ob(x).fe=x.fe.filter(f=>f!=='Allerheiligen (1.11.)');put(x);say('Allerheiligen-Tag entfernt: '+x.name)});
   /* Libera me (Requiem, Absolutio) */
