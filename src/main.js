@@ -1060,7 +1060,7 @@ function regFixes(say){
     if(!cur(m).nt&&!ob(m).nt){ob(m).nt=fileUrl('1ADz1Zq_pOOXVWF2bwYE9rjloxmAYqkUO');put(m)}}
   if(g&&m){
     delL(g,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV'); delL(g,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX'); delL(g,'on','1stgZVmFNNHo6GTNyMMWzEPXd_D3QnE-p');
-    {const gc=cur(g);if(gc.fe.includes('Rosenkranzsonntag')){ob(g).fe=gc.fe.filter(x=>x!=='Rosenkranzsonntag');put(g)}}
+    {const gc=cur(g),bad=['Rosenkranzsonntag','Herz-Jesu-Freitag'];if(gc.fe.some(x=>bad.includes(x))){ob(g).fe=gc.fe.filter(x=>!bad.includes(x));put(g)}}
     setNm(g,'Gaudeamus... omnium sanctorum');
     const lc=parseLinks(cur(g).cn||''),x=lc.find(y=>y.u.includes('18KCl-rAaPXHV46nr7TL6U2DAJFSx-2iy'));if(x&&x.l!=='Choral'){x.l='Choral';ob(g).cn=lnkStr(lc);put(g)}
     const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&y.l!=='Choral (aus Sammel-PDF)'){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
