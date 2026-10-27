@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 33 -->
+<!-- Build 34 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -169,7 +169,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 33</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 34</small></div>
     <div class="sync" id="sync" title="Speicherort der Änderungen">…</div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -1167,7 +1167,7 @@ const SPL_ART='Schola-Gesang (Proprium/Choral)', SPL_FOLDER='1na4i6KGlePisA8ENF0
 /* part: file (Drive-Name), pages (0-basiert), y (optionaler vertikaler Ausschnitt 0..1), key (Registereintrag, Anfang des Incipits), entry (Name, falls neu), label (Linkname) */
 const SPLITS=[
  {name:'Allerheiligen',src:'14u80_mC95i_qz-Ff85zwTri_i-1IcGE3',n:5,parts:[
-  {file:'Gaudeamus... Sanctorum omnium (aus Sammel-PDF) – Choral.pdf',old:['Introitus Gaudeamus (Allerheiligen).pdf','Gaudeamus omnes in Domino (Allerheiligen, Introitus) – Choral.pdf','Gaudeamus omnes in Domino (Allerheiligen) – Choral.pdf'],pos:'Introitus',fest:'Allerheiligen (1.11.)',pages:[0],key:'Gaudeamus',label:'Introitus Allerheiligen'},
+  {file:'Gaudeamus... sanctorum omnium (aus Sammel-PDF) – Choral.pdf',old:['Introitus Gaudeamus (Allerheiligen).pdf','Gaudeamus omnes in Domino (Allerheiligen, Introitus) – Choral.pdf','Gaudeamus omnes in Domino (Allerheiligen) – Choral.pdf'],pos:'Introitus',fest:'Allerheiligen (1.11.)',pages:[0],key:'Gaudeamus',label:'Introitus Allerheiligen'},
   {file:'Timete Dominum – Choral.pdf',old:['Graduale Timete Dominum (Allerheiligen).pdf','Timete Dominum (Allerheiligen, Graduale) – Choral.pdf','Timete Dominum omnes sancti eius (Allerheiligen, Graduale) – Choral.pdf'],pos:'Graduale / Alleluia / Sequenz',fest:'Allerheiligen (1.11.)',pages:[1],y:[0,AH_CUT],key:'Timete Dominum',entry:'Timete Dominum…',label:'Graduale Allerheiligen'},
   {file:'Venite ad me – Choral.pdf',old:['Alleluia Venite ad me (Allerheiligen).pdf','Venite ad me (Allerheiligen, Alleluia) – Choral.pdf','Venite ad me omnes (Allerheiligen, Alleluia) – Choral.pdf'],pos:'Graduale / Alleluia / Sequenz',fest:'Allerheiligen (1.11.)',pages:[1],y:[AH_CUT,1],key:'Timete Dominum',entry:'Timete Dominum…',label:'Alleluia Allerheiligen'},
   {file:'Justorum animae – Choral.pdf',old:['Offertorium Justorum animae (Allerheiligen).pdf','Justorum animae (Allerheiligen, Offertorium) – Choral.pdf'],pos:'Offertorium',fest:'Allerheiligen (1.11.)',pages:[2],key:'Justorum animae',label:'Offertorium Allerheiligen'},
@@ -1306,9 +1306,11 @@ function regFixes(say){
   if(g&&m){
     delL(g,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV'); delL(g,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX'); delL(g,'on','1stgZVmFNNHo6GTNyMMWzEPXd_D3QnE-p');
     {const gc=cur(g),bad=['Rosenkranzsonntag','Herz-Jesu-Freitag'];if(gc.fe.some(x=>bad.includes(x))){ob(g).fe=gc.fe.filter(x=>!bad.includes(x));put(g)}}
-    setNm(g,'Gaudeamus... omnium sanctorum');
+    setNm(g,'Gaudeamus... sanctorum omnium');
     const lc=parseLinks(cur(g).cn||''),x=lc.find(y=>y.u.includes('18KCl-rAaPXHV46nr7TL6U2DAJFSx-2iy'));if(x&&x.l!=='Choral'){x.l='Choral';ob(g).cn=lnkStr(lc);put(g)}
     const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&y.l!=='Choral (aus Sammel-PDF)'){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
+  /* Allerheiligen: nur dort getaggte Gesänge als feste Zuordnung (Override) führen, damit sie im Schola-Reiter / bei neuen Plänen erscheinen */
+  REG().filter(x=>x.art===A&&!x.hide&&!x.fx&&x.fe.length===1&&x.fe[0]==='Allerheiligen (1.11.)').forEach(x=>{ob(x).fe=['Allerheiligen (1.11.)'];put(x);say('Allerheiligen zugeordnet: '+x.name)});
   /* Libera me (Requiem, Absolutio) */
   let lm=REG().find(x=>x.art===A&&x.orig==='Libera me')||REG().find(x=>x.art===A&&x.orig==='Libera me, Domine, de morte aeterna');
   if(!lm)lm=mk('Libera me');
