@@ -1066,6 +1066,8 @@ function regFixes(say){
     const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&y.l!=='Choral (aus Sammel-PDF)'){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
   /* Allerheiligen: nur dort getaggte Gesänge als feste Zuordnung (Override) führen, damit sie im Schola-Reiter / bei neuen Plänen erscheinen */
   REG().filter(x=>x.art===A&&!x.hide&&!x.fx&&x.fe.length===1&&x.fe[0]==='Allerheiligen (1.11.)').forEach(x=>{ob(x).fe=['Allerheiligen (1.11.)'];put(x);say('Allerheiligen zugeordnet: '+x.name)});
+  /* Adorémus in aetérnum: Allerheiligen-Tag war falsch (steht in keinem Allerheiligen-Plan) */
+  REG().filter(x=>x.art===A&&/^Adorémus in aetérnum/i.test(x.orig)&&x.fe.includes('Allerheiligen (1.11.)')).forEach(x=>{ob(x).fe=x.fe.filter(f=>f!=='Allerheiligen (1.11.)');put(x);say('Allerheiligen-Tag entfernt: '+x.name)});
   /* Libera me (Requiem, Absolutio) */
   let lm=REG().find(x=>x.art===A&&x.orig==='Libera me')||REG().find(x=>x.art===A&&x.orig==='Libera me, Domine, de morte aeterna');
   if(!lm)lm=mk('Libera me');
