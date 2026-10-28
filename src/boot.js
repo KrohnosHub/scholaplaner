@@ -42,7 +42,9 @@ const GD=(()=>{
     const mp='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name,parents:[FOLDER],mimeType:'application/json'})+'\r\n--'+b+'\r\nContent-Type: application/json\r\n\r\n'+body+'\r\n--'+b+'--';
     const r=await api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:mp},false);
     return (await r.json()).id}
-  return {cached,token,fetch:api,find,readJson,writeJson};
+  async function list(part){const u='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({q:"name contains '"+Q(part)+"' and '"+FOLDER+"' in parents and trashed=false",fields:'files(id,name,modifiedTime)',pageSize:'100',orderBy:'modifiedTime desc'});
+    return (await (await api(u,{},false)).json()).files||[]}
+  return {cached,token,fetch:api,find,readJson,writeJson,list};
 })();
 (async()=>{
   const ov=document.getElementById('login'),msg=document.getElementById('lmsg'),btn=document.getElementById('lbtn');

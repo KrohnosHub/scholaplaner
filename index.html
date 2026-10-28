@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 38 -->
+<!-- Build 39 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -171,7 +171,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 38</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 39</small></div>
     <div class="sync" id="sync" title="Speicherort der Änderungen">…</div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -226,7 +226,9 @@ const GD=(()=>{
     const mp='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name,parents:[FOLDER],mimeType:'application/json'})+'\r\n--'+b+'\r\nContent-Type: application/json\r\n\r\n'+body+'\r\n--'+b+'--';
     const r=await api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:mp},false);
     return (await r.json()).id}
-  return {cached,token,fetch:api,find,readJson,writeJson};
+  async function list(part){const u='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({q:"name contains '"+Q(part)+"' and '"+FOLDER+"' in parents and trashed=false",fields:'files(id,name,modifiedTime)',pageSize:'100',orderBy:'modifiedTime desc'});
+    return (await (await api(u,{},false)).json()).files||[]}
+  return {cached,token,fetch:api,find,readJson,writeJson,list};
 })();
 (async()=>{
   const ov=document.getElementById('login'),msg=document.getElementById('lmsg'),btn=document.getElementById('lbtn');
@@ -271,9 +273,35 @@ const busy=()=>{const a=document.activeElement;return a&&/INPUT|TEXTAREA|SELECT/
 function dlText(name,text,type='application/json'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 function setSync(t,bad,login){const e=$('#sync');if(!e)return;e.innerHTML=(bad?`<span style="color:var(--warn)">${esc(t)}</span>`:t)+(login?` <button class="btn sm" data-login="1">Mit Google anmelden</button>`:'')}
 const okSync=()=>setSync(READONLY?'<b>●</b> Nur Lesen':dirty.size?'Änderungen noch nicht gesichert …':'<b>●</b> in Drive gespeichert');
+/* ---------- Änderungsverlauf (lokal): vorheriger Stand je Eintrag, zum Zurücksetzen ---------- */
+const HIST_MAX=80,HIST_CHARS=600000;
+let SHADOW={};
+const shStr=o=>{if(!o)return null;const c=Object.assign({},o);delete c.upd;return JSON.stringify(c)};
+function shadowAll(){SHADOW={};for(const k in S.termine)SHADOW['termine\t'+k]=shStr(S.termine[k]);for(const k in S.reg)SHADOW['register\t'+k]=shStr(S.reg[k])}
+function histLabel(c,k){
+  if(c==='termine'){const e=(typeof EV!=='undefined'?EV:[]).find(x=>x.key===k);return e?fmtD(e.d)+' '+e.n:'Termin '+k}
+  const r=REG().find(x=>x.key===k);return r?r.name:'Gesang '+k}
+function histPush(c,k,cur){
+  const sk=c+'\t'+k,before=SHADOW[sk]===undefined?null:SHADOW[sk],now=shStr(cur);
+  SHADOW[sk]=now;
+  if(before===now) return;
+  let h=LS.get('sp.hist',[]);const t=Date.now(),f=h[0];
+  if(f&&f.c===c&&f.k===k&&t-f.ms<600000){f.ms=t}
+  else{h.unshift({ms:t,c,k,l:histLabel(c,k),b:before})}
+  h=h.slice(0,HIST_MAX);while(h.length>5&&JSON.stringify(h).length>HIST_CHARS)h.pop();
+  LS.set('sp.hist',h)}
+function histUndo(i){
+  const h=LS.get('sp.hist',[]),e=h[i];if(!e)return false;
+  const tgt=e.c==='termine'?S.termine:S.reg;
+  if(e.b===null){if(e.c==='termine')return false;tgt[e.k]={}}
+  else tgt[e.k]=JSON.parse(e.b);
+  save();dbPut(e.c,e.k);
+  if(e.c==='register'){for(const a in AUTO)delete AUTO[a]}
+  return true}
 function dbPut(coll,key){
   if(READONLY) return;
   const o=coll==='termine'?S.termine[key]:coll==='register'?S.reg[key]:null;
+  if(o) histPush(coll,key,o);
   if(o) o.upd=new Date().toISOString();
   dirty.add(coll+'\t'+(coll==='eigene'?'*':key));LS.set('sp.dirty',[...dirty]);
   clearTimeout(flushT);flushT=setTimeout(flush,1500);
@@ -291,6 +319,7 @@ function mergeIn(R){
   for(const k in R.reg||{}){const r=R.reg[k],l=S.reg[k];if(dirty.has('register\t'+k))continue;if(!l||(r.upd||'')>(l.upd||'')){S.reg[k]=r;tr=true}}
   (R.custom||[]).forEach(c=>{if(!S.custom.some(y=>y.art===c.art&&y.name===c.name&&(y.nr||'')===(c.nr||''))){S.custom.push(c);tc=true}});
   if(tr)for(const k in AUTO)delete AUTO[k];
+  if(tt||tr)shadowAll();
   return {tt,tr,tc};
 }
 function redraw(m){
@@ -346,7 +375,7 @@ async function initDb(){
     try{await GD.token(true);await initDb.go()}catch(err){setSync(String(err&&err.message||err),true,true)}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&GD.cached()){pull().then(flush)}});
   setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
-  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis()};
+  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis();autoBackup()};
   if(GD.cached()) initDb.go(); else setSync('Nicht angemeldet',true,true);
 }
 function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}
@@ -1420,6 +1449,7 @@ function viewDaten(){
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="exp">Eigene Änderungen exportieren (JSON)</button>
      ${canEdit()?'<label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>':''}</div>
      <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
+   ${verlaufCard()}
    ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>
    <div class="card"><h2>Ordner-Dateien verlinken</h2><p class="small">Verlinkt PDFs aus dem Drive-Hauptordner, die noch bei keinem Gesang hinterlegt sind (ca. 40), und legt dafür fehlende Einträge an. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="lnksplit">Nachtragen</button><div class="small" id="lnkres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
@@ -1438,10 +1468,46 @@ function bindDaten(){
   const ahb=$('#ahsplit'); if(ahb) ahb.onclick=async()=>{ahb.disabled=true;try{await splitSammel($('#ahres'))}catch(e){$('#ahres').innerHTML+='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}ahb.disabled=false};
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
-  const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);
-    Object.assign(S.termine,j.termine||{});Object.assign(S.reg,j.reg||{});
-    (j.custom||[]).forEach(c=>{if(!S.custom.some(x=>x.art===c.art&&x.name===c.name&&x.nr===c.nr))S.custom.push(c)});
-    save();Object.keys(j.termine||{}).forEach(k=>dbPut('termine',k));Object.keys(j.reg||{}).forEach(k=>dbPut('register',k));if((j.custom||[]).length)dbPut('eigene','*');toast('Importiert');render()}catch(err){toast('Datei nicht lesbar')}};r.readAsText(f)};
+  const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{overlayState(JSON.parse(r.result));toast('Importiert');render()}catch(err){toast('Datei nicht lesbar')}};r.readAsText(f)};
+  bindVerlauf();
+}
+
+/* ---------- Backup (Drive-Schnappschuss) + Änderungsverlauf ---------- */
+const BK_PRE='Schola-Planer-Backup-';
+function overlayState(j){
+  Object.assign(S.termine,j.termine||{});Object.assign(S.reg,j.reg||{});
+  (j.custom||[]).forEach(c=>{if(!S.custom.some(x=>x.art===c.art&&x.name===c.name&&(x.nr||'')===(c.nr||'')))S.custom.push(c)});
+  save();Object.keys(j.termine||{}).forEach(k=>dbPut('termine',k));Object.keys(j.reg||{}).forEach(k=>dbPut('register',k));if((j.custom||[]).length)dbPut('eigene','*');
+  for(const a in AUTO)delete AUTO[a]}
+async function makeBackup(auto){
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  const name=BK_PRE+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+'.json';
+  await GD.writeJson(name,{v:2,at:d.toISOString(),termine:S.termine,reg:S.reg,custom:S.custom});
+  LS.set('sp.bk',Date.now());return name}
+async function autoBackup(){
+  try{if(READONLY||!GD.cached())return;
+    if(!Object.keys(S.termine).length&&!Object.keys(S.reg).length&&!S.custom.length)return;
+    if(Date.now()-LS.get('sp.bk',0)<7*864e5)return;
+    const n=await makeBackup(true);toast('Wöchentliches Backup angelegt: '+n)}catch(e){console.warn('autoBackup',e)}}
+const fmtDT=ms=>{const d=new Date(ms),p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'. '+p(d.getHours())+':'+p(d.getMinutes())};
+function verlaufHtml(){
+  const h=LS.get('sp.hist',[]);
+  if(!h.length)return '<p class="small muted">Noch keine Änderungen in diesem Browser.</p>';
+  return '<div style="max-height:320px;overflow:auto">'+h.slice(0,40).map((e,i)=>`<div class="chkg" style="display:flex;gap:8px;align-items:center;justify-content:space-between"><span class="small"><b>${esc(e.l)}</b><br><span class="muted">${fmtDT(e.ms)} · ${e.c==='termine'?'Termin':'Gesang'}${e.b===null?' · neu angelegt':''}</span></span>${canEdit()&&!(e.b===null&&e.c==='termine')?`<button class="btn sm" data-undo="${i}">Zurücksetzen</button>`:''}</div>`).join('')+'</div>'}
+function verlaufCard(){return `<div class="card"><h2>Änderungsverlauf</h2><p class="small">Die letzten Änderungen an Terminen und Gesängen (nur in diesem Browser). «Zurücksetzen» stellt den Stand vor der Änderung wieder her; das wird selbst wieder als Änderung festgehalten.</p><div id="verl">${verlaufHtml()}</div></div>
+ <div class="card"><h2>Backup</h2><p class="small">Schnappschuss aller Termine, Register-Einträge und eigenen Gesänge als Datei im Notator-Ordner in Google Drive (${LS.get('sp.bk',0)?'letztes Backup: '+fmtDT(LS.get('sp.bk',0)):'noch keins'}). Automatisch höchstens einmal pro Woche beim Öffnen.</p>
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" id="bknow">Backup jetzt anlegen</button><button class="btn" id="bklist">Backups anzeigen</button></div><div class="small" id="bkres" style="margin-top:8px"></div></div>`}
+function bindVerlauf(){
+  const v=$('#verl');if(v)v.onclick=e=>{const b=e.target.closest('[data-undo]');if(!b)return;
+    if(histUndo(+b.dataset.undo)){toast('Zurückgesetzt');v.innerHTML=verlaufHtml();if(S.tab!=='daten')render()}else toast('Nicht möglich')};
+  const bn=$('#bknow');if(bn)bn.onclick=async()=>{const r=$('#bkres');bn.disabled=true;
+    try{if(!GD.cached())throw new Error('Nicht bei Google angemeldet');const n=await makeBackup();r.innerHTML='Angelegt: <b>'+esc(n)+'</b>'}catch(e){r.innerHTML='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}bn.disabled=false};
+  const bl=$('#bklist');if(bl)bl.onclick=async()=>{const r=$('#bkres');bl.disabled=true;r.textContent='Lade …';
+    try{const f=(await GD.list('Backup')).filter(x=>x.name.startsWith(BK_PRE));
+      r.innerHTML=f.length?f.slice(0,20).map(x=>`<div class="chkg" style="display:flex;gap:8px;align-items:center;justify-content:space-between"><span>${esc(x.name.replace(BK_PRE,'').replace('.json','').replace('_',' '))}</span>${canEdit()?`<button class="btn sm" data-rest="${x.id}">Wiederherstellen</button>`:''}</div>`).join('')+'<p class="hint">Wiederherstellen überlagert den aktuellen Stand: Einträge aus dem Backup ersetzen gleichnamige aktuelle, neuere Einträge, die im Backup fehlen, bleiben.</p>':'Keine Backups gefunden.';
+      r.onclick=async ev=>{const b=ev.target.closest('[data-rest]');if(!b)return;if(!confirm('Backup wiederherstellen? Gleichnamige Einträge werden überschrieben.'))return;
+        b.disabled=true;try{overlayState(await GD.readJson(b.dataset.rest));toast('Wiederhergestellt');render()}catch(er){r.innerHTML+='<b style="color:#a8322d">Fehler: '+esc(er&&er.message||er)+'</b>'}}}
+    catch(e){r.innerHTML='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}bl.disabled=false};
 }
 
 /* ---------- Prüfen: Register-Prüfbericht + Fest-Tags aus den Plänen ---------- */
@@ -1541,6 +1607,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(
 // Beispielstart: nächster Termin ab heute
 (function(){const today=new Date().toISOString().slice(0,10);const nx=EV.find(e=>e.d>=today&&e.a==='Sonntag')||EV[0];S.kj=nx.kj;S.sel=nx.key;S.tab='kj'})();
 render();
+shadowAll();
 initDb();
 </script>
 <script>if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
