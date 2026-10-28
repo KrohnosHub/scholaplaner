@@ -502,7 +502,7 @@ function viewTermin(){
   const dis=ro?'disabled':'';
   const tplOpts=(sugg.length?`<optgroup label="Passend zum Fest (${esc(ev.c||'')})">${sugg.map(p=>`<option value="${p.id}" ${t.tpl===p.id?'selected':''}>${esc(planLabel(p))}</option>`).join('')}</optgroup>`:'')
     +`<optgroup label="Anderer Festtyp"><option value="">– Festtyp wählen –</option>${CANONS.map(c=>`<option value="c:${esc(c)}">${esc(c)}</option>`).join('')}</optgroup>`;
-  return `<div class="grid2 tv" data-tsub="${S.tsub||'ablauf'}"><div>
+  return `<div class="grid2 tv" data-tsub="${S.tsub||'ablauf'}" data-rv="${LS.get('sp.rv',innerWidth<=900?'list':'table')}"><div>
    <div class="card">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn sm" id="back">← Kirchenjahr</button>
      <h2 style="flex:1;min-width:200px"><span class="sw" style="--lc:${lcolor(ev)}"></span>${esc(ev.n)}</h2></div>
@@ -521,8 +521,8 @@ function viewTermin(){
     ${t.rows.length||!ro?'':`<p class="muted">Noch kein Plan angelegt.</p>`}
    </div>
    <div class="seg tsw" role="tablist" aria-label="Bereich">${[['ablauf','Ablauf'],['schola','Schola'+(ev.c?' ('+assignedTo(ev.c).length+')':'')],['vorschau','Vorschau']].map(([k,l])=>`<button data-tsub="${k}" aria-pressed="${(S.tsub||'ablauf')===k}">${l}</button>`).join('')}</div>
-   <div class="card" data-sec="ablauf"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h3>Ablauf</h3>${ro?'':`<span><button class="btn sm" id="addrow">+ Zeile</button> <button class="btn sm" id="addg">+ Schola-Gesang</button></span>`}</div>
-    <div class="rowsw"><table class="ed" id="ed"><thead><tr><th>Position</th><th>Buch</th><th>Nr.</th><th>Strophen</th><th>Titel / Incipit</th><th>Typ</th>${canOrgan()?'<th>Orgel</th>':''}<th></th></tr></thead><tbody id="edb"></tbody></table></div>
+   <div class="card" data-sec="ablauf"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h3>Ablauf</h3><span><button class="btn sm" id="rvt" title="Ansicht wechseln">Tabelle</button> ${ro?'':`<button class="btn sm" id="addrow">+ Zeile</button> <button class="btn sm" id="addg">+ Schola-Gesang</button>`}</span></div>
+    <div class="rlw" id="edl"></div><div class="rowsw"><table class="ed" id="ed"><thead><tr><th>Position</th><th>Buch</th><th>Nr.</th><th>Strophen</th><th>Titel / Incipit</th><th>Typ</th>${canOrgan()?'<th>Orgel</th>':''}<th></th></tr></thead><tbody id="edb"></tbody></table></div>
     <p class="hint">Typ «Schola» = Choralgesang (erscheint im Liederplan nur als Titel, im Scholaplan mit Links). Buch SR = Salve Regina (Standard).</p>
    </div><div id="regc" data-sec="schola"></div></div>
    <div data-sec="vorschau">
@@ -558,13 +558,37 @@ function buildCat(){
   CAT={G,L};
 }
 const catOpts=k=>[...CAT[k]].map(([v,x])=>`<option value="${esc(v)}">${esc(x.lab||'')}</option>`).join('');
+/* Detail-Ansicht einer Ablauf-Zeile (Blatt über der Liste) */
+function drawSheet(ev,t,full){
+  const i=window._rsI,C=window._rsCtx;let sh=document.getElementById('rsheet');
+  if(i==null||!t.rows[i]||!C){if(sh)sh.remove();window._rsI=null;document.body.style.overflow='';return}
+  const r=t.rows[i];
+  if(sh&&!full&&sh.dataset.i==String(i)&&sh.dataset.k===r.k&&sh.dataset.n===String(t.rows.length)){
+    sh.querySelectorAll('[data-f]').forEach(x=>{if(x!==document.activeElement)x.value=r[x.dataset.f]||''});return}
+  if(!sh){sh=document.createElement('div');sh.id='rsheet';document.body.appendChild(sh)}
+  sh.dataset.i=i;sh.dataset.k=r.k;sh.dataset.n=t.rows.length;
+  const ed=canEdit();
+  sh.innerHTML=`<div class="rsb" role="dialog" aria-label="Zeile bearbeiten"><div class="rsh"><b>Zeile ${i+1} von ${t.rows.length}</b><button class="btn pri" data-s="close">Fertig</button></div>
+   <table class="ed rs"><tbody id="edd">${window._trHtml(r,i,true)}</tbody></table>
+   <div class="rsa"><button class="btn" data-s="prev" ${i?'':'disabled'}>← Vorherige</button><button class="btn" data-s="next" ${i<t.rows.length-1?'':'disabled'}>Nächste →</button>${ed?`<button class="btn" data-s="up" ${i?'':'disabled'} title="nach oben">↑</button><button class="btn" data-s="dn" ${i<t.rows.length-1?'':'disabled'} title="nach unten">↓</button><button class="btn" data-s="del">✕ Löschen</button>`:''}</div></div>`;
+  document.body.style.overflow='hidden';
+  const e=$('#edd');if(C.h){e.oninput=C.h.i;e.onchange=C.h.c}
+  sh.onclick=ev2=>{const b=ev2.target.closest('[data-s]');
+    if(!b){if(ev2.target===sh){window._rsI=null;drawSheet(ev,t);drawRows(ev,t)}return}
+    const a=b.dataset.s,j=window._rsI;
+    if(a==='close'){window._rsI=null;drawSheet(ev,t);drawRows(ev,t);return}
+    if(a==='prev')window._rsI=j-1;else if(a==='next')window._rsI=j+1;
+    else if(a==='del'){t.rows.splice(j,1);C.commit();C.pv();window._rsI=t.rows.length?Math.min(j,t.rows.length-1):null}
+    else if(a==='up'&&j>0){[t.rows[j-1],t.rows[j]]=[t.rows[j],t.rows[j-1]];window._rsI=j-1;C.commit();C.pv()}
+    else if(a==='dn'&&j<t.rows.length-1){[t.rows[j+1],t.rows[j]]=[t.rows[j],t.rows[j+1]];window._rsI=j+1;C.commit();C.pv()}
+    drawRows(ev,t);if(window._rsI!=null)drawSheet(ev,t,true)}}
 function drawRows(ev,t){
   const ro=!canEdit();
   buildCat();
-  $('#edb').innerHTML=t.rows.map((r,i)=>{
+  const trHtml=(r,i,sh)=>{
     const d=ro?'disabled':'';
     const hnr=r.k==='G'&&!r.b&&!r.n&&!r.v, ho=!r.o;
-    const mh=hnr?' mhid':'';
+    const mh=hnr&&!sh?' mhid':'';
     return `<tr class="${r.k==='G'?'g':''}" data-i="${i}">
      <td class="c-pos"><input type="text" data-f="p" value="${esc(r.p)}" ${d}></td>
      <td class="c-book${mh}"><select data-f="b" ${d}>${['','SR','Adoremus','Heft','Blatt','Zettel','OM'].map(x=>`<option value="${x}" ${r.b===x?'selected':''}>${x||'–'}</option>`).join('')}</select></td>
@@ -572,9 +596,13 @@ function drawRows(ev,t){
      <td class="c-v${mh}"><input type="text" data-f="v" value="${esc(r.v)}" ${d}></td>
      <td class="c-t"><input type="text" data-f="t" value="${esc(r.t)}" ${r.k==='O'?'':'list="cat'+(r.k==='G'?'G':'L')+'" placeholder="Katalog durchsuchen oder frei eintippen"'} ${d}></td>
      <td class="c-k"><select data-f="k" ${d}><option value="L" ${r.k==='L'?'selected':''}>Lied</option><option value="G" ${r.k==='G'?'selected':''}>Schola</option><option value="O" ${r.k==='O'?'selected':''}>Orgel/Stille</option></select></td>
-     ${canOrgan()?`<td class="c-o${ho?' mhid':''}"><input type="text" data-f="o" value="${esc(r.o)}" placeholder="Hinweis" ${d}></td>`:''}
-     <td class="c-x">${ro?'':`<span class="act-full"><button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button></span><details class="rmenu"><summary class="btn sm" aria-label="Zeilenmenü">⋯</summary><div class="rmp">${canOrgan()&&ho?'<button class="btn sm" data-a="sho">+ Hinweis</button>':''}${hnr?'<button class="btn sm" data-a="shnr">+ Nr.</button>':''}<button class="btn sm" data-a="up" title="nach oben">↑</button><button class="btn sm" data-a="dn" title="nach unten">↓</button><button class="btn sm" data-a="del" title="Zeile löschen">✕</button></div></details>`}</td></tr>`;
-  }).join('')||`<tr><td colspan="8" class="muted" style="padding:10px">Keine Zeilen. Vorlage laden oder Zeile hinzufügen.</td></tr>`;
+     ${canOrgan()?`<td class="c-o${ho&&!sh?' mhid':''}"><input type="text" data-f="o" value="${esc(r.o)}" placeholder="Hinweis" ${d}></td>`:''}
+     ${sh?'':`<td class="c-x">${ro?'':`<span class="act-full"><button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button></span><details class="rmenu"><summary class="btn sm" aria-label="Zeilenmenü">⋯</summary><div class="rmp">${canOrgan()&&ho?'<button class="btn sm" data-a="sho">+ Hinweis</button>':''}${hnr?'<button class="btn sm" data-a="shnr">+ Nr.</button>':''}<button class="btn sm" data-a="up" title="nach oben">↑</button><button class="btn sm" data-a="dn" title="nach unten">↓</button><button class="btn sm" data-a="del" title="Zeile löschen">✕</button></div></details>`}</td>`}</tr>`;
+  };
+  window._trHtml=trHtml;
+  $('#edb').innerHTML=t.rows.map((r,i)=>trHtml(r,i,false)).join('')||`<tr><td colspan="8" class="muted" style="padding:10px">Keine Zeilen. Vorlage laden oder Zeile hinzufügen.</td></tr>`;
+  const el=$('#edl');if(el)el.innerHTML=t.rows.map((r,i)=>{const nr=rowNr(r);return `<button type="button" class="rl${r.k==='G'?' g':''}" data-i="${i}"><span class="rlp">${esc(r.p)||'–'}${r.k==='G'?' · Schola':r.k==='O'?' · Orgel/Stille':''}</span><span class="rlt">${nr?`<b class="rln">${esc(nr)}</b>`:''}${esc(r.t||'')||'<i class="muted">(leer)</i>'}</span>${r.o?`<span class="rlo">Orgel: ${esc(r.o)}</span>`:''}</button>`}).join('')||'<p class="muted" style="margin:8px 0">Keine Zeilen. Vorlage laden oder Zeile hinzufügen.</p>';
+  if(window._rsI!=null)drawSheet(ev,t);
   let dl=document.getElementById('catdl'); if(!dl){dl=document.createElement('div');dl.id='catdl';document.body.appendChild(dl)}
   dl.innerHTML=`<datalist id="catG">${catOpts('G')}</datalist><datalist id="catL">${catOpts('L')}</datalist>`;
 }
@@ -646,7 +674,13 @@ function bindTermin(){
   }
   let t=getTermin(ev);
   const commit=()=>{if(canEdit()){if(t.rows.length){t.vars=t.vars||{};t.vars[t.sch]={rows:JSON.parse(JSON.stringify(t.rows)),tpl:t.tpl||''}}setTermin(ev,t)}};
+  window._rsI=null;drawSheet(ev,t);
   drawRows(ev,t); const pv=()=>{$('#prev').innerHTML=previewHTML(ev,t);$('#abg').innerHTML=abgCard(ev,t)}; pv();
+  window._rsCtx={commit,pv};
+  const rvNow=()=>LS.get('sp.rv',innerWidth<=900?'list':'table');
+  const rvApply=()=>{const tv=$('.tv');if(tv)tv.dataset.rv=rvNow();const b=$('#rvt');if(b)b.textContent=rvNow()==='list'?'Tabelle':'Liste'};
+  rvApply();$('#rvt').onclick=()=>{LS.set('sp.rv',rvNow()==='list'?'table':'list');rvApply()};
+  $('#edl').onclick=e=>{const b=e.target.closest('.rl');if(!b)return;window._rsI=+b.dataset.i;drawSheet(ev,t,true)};
   $('#back').onclick=()=>{S.tab='kj';render()};
   document.querySelectorAll('[data-tsub]').forEach(b=>b.onclick=()=>{S.tsub=b.dataset.tsub;const tv=$('.tv');if(tv)tv.dataset.tsub=S.tsub;document.querySelectorAll('[data-tsub]').forEach(x=>{if(x.tagName==='BUTTON')x.setAttribute('aria-pressed',x.dataset.tsub===S.tsub)})});
   const kd=$('#kopfd'); if(kd) kd.ontoggle=()=>{if(innerWidth<=560)S.kopf=kd.open};
@@ -677,8 +711,8 @@ function bindTermin(){
       t._ok=false;applyTemplate(ev,t,v);commit();render();toast('Vorlage geladen');
     };
     const tn=$('#tnote'); if(tn) tn.oninput=e=>{t.note=e.target.value;commit()};
-    if($('#addrow'))$('#addrow').onclick=()=>{t.rows.push({p:'',b:'SR',n:'',v:'',t:'',k:'L',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
-    if($('#addg'))$('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv()};
+    if($('#addrow'))$('#addrow').onclick=()=>{t.rows.push({p:'',b:'SR',n:'',v:'',t:'',k:'L',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();if(rvNow()==='list'){window._rsI=t.rows.length-1;drawSheet(ev,t,true)}};
+    if($('#addg'))$('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();if(rvNow()==='list'){window._rsI=t.rows.length-1;drawSheet(ev,t,true)}};
     $('#edb').oninput=e=>{const tr=e.target.closest('tr');if(!tr||!e.target.dataset.f)return;const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();pv()};
     $('#edb').onchange=e=>{if(e.target.dataset.f==='n'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const n=String(r.n||'').trim();
         if(n&&r.k!=='G'){const c=titleForNr(r.b,n);if(c.length===1){if(r.t!==c[0]){r.t=c[0];r.v=r.v||'';commit();drawRows(ev,t);pv();toast('Titel aus Liederverzeichnis: '+c[0])}}else if(c.length>1)toast('Nr. '+n+' ist mehrdeutig – Titel bitte wählen')}
@@ -690,6 +724,7 @@ function bindTermin(){
       if(b.dataset.a==='up'&&i>0)[t.rows[i-1],t.rows[i]]=[t.rows[i],t.rows[i-1]];
       if(b.dataset.a==='dn'&&i<t.rows.length-1)[t.rows[i+1],t.rows[i]]=[t.rows[i],t.rows[i+1]];
       commit();drawRows(ev,t);pv()};
+    window._rsCtx.h={i:$('#edb').oninput,c:$('#edb').onchange};
   }
 
   const drawRegc=()=>{const e=$('#regc');if(e)e.innerHTML=schPlanCard(ev,t)+(ev.c?regCard(ev,t):'<div class="card"><p class="small muted" style="margin:0">Diesem Termin ist kein Fest im Register zugeordnet.</p></div>')};drawRegc();

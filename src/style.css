@@ -173,3 +173,31 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 #pm .pl{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
 #pm .pmb{display:inline-block;padding:12px 20px;border:2px solid var(--line);border-radius:8px;font-size:20px;font-weight:600;text-decoration:none;color:var(--ink);background:var(--surface)}
 #pm .pmb.org{border-color:#2b3a67;background:#2b3a67;color:#fff}
+
+/* Ablauf: Listen-/Detail-Ansicht */
+.rlw{display:none}
+.tv[data-rv="list"] .rlw{display:block}
+.tv[data-rv="list"] .rowsw{display:none}
+.rl{display:block;width:100%;text-align:left;background:var(--surface);border:0;border-top:1px solid var(--line);color:var(--ink);font:inherit;padding:10px 8px;cursor:pointer}
+.rl:first-child{border-top:1px solid var(--line)}
+.rl.g{background:var(--accent-soft)}
+.rlp{display:block;font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.rlt{display:block;font-size:16px;margin-top:1px}
+.rln{display:inline-block;min-width:2.2em;margin-right:8px;padding:0 6px;border-radius:5px;background:var(--surface2);text-align:center}
+.rlo{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+#rsheet{position:fixed;inset:0;z-index:8800;background:rgba(10,14,25,.5);display:flex;align-items:flex-end;justify-content:center}
+#rsheet .rsb{background:var(--surface);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:12px 12px 0 0;padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){#rsheet{align-items:center}#rsheet .rsb{border-radius:12px}}
+#rsheet .rsh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#rsheet table.ed{min-width:0!important;display:block}
+#rsheet .ed tbody,#rsheet .ed tbody tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px 8px}
+#rsheet .ed tbody{display:block}
+#rsheet .ed tbody td{display:block;border:0;padding:0;width:auto!important;min-width:0!important}
+#rsheet .ed td.c-pos{grid-column:span 4;order:1}#rsheet .ed td.c-k{grid-column:span 2;order:2}
+#rsheet .ed td.c-t{grid-column:1/-1;order:3}
+#rsheet .ed td.c-book{grid-column:span 2;order:4}#rsheet .ed td.c-nr{grid-column:span 2;order:5}#rsheet .ed td.c-v{grid-column:span 2;order:6}
+#rsheet .ed td.c-o{grid-column:1/-1;order:7}
+#rsheet .ed input,#rsheet .ed select{font-size:16px;padding:9px 10px}
+#rsheet .rsa{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media (max-width:560px){.gsl{display:none}}
+#gsb{white-space:nowrap}
