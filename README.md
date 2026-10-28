@@ -9,5 +9,7 @@ Liederpläne und Scholaplanung als Web-App (GitHub Pages: https://krohnoshub.git
 - Offline: Service Worker für die App-Hülle, Basisdaten in IndexedDB, Änderungen lokal bis zur nächsten Anmeldung.
 
 ## Entwicklung
-`src/` enthält die Quellen (shell.html, style.css, body.html, boot.js, main.js). `python3 build.py` erzeugt `index.html` und setzt die Cache-Version in `sw.js` (Nummer in `VERSION` erhöhen).
+`src/` enthält die Quellen (shell.html, style.css, body.html, boot.js und `js/*.js`; die Dateien in `src/js/` werden nach Dateinamen sortiert zu einem Skript zusammengesetzt, Nummer = Reihenfolge). `python3 build.py` erzeugt `index.html` und setzt die Cache-Version in `sw.js` (Nummer in `VERSION` erhöhen).
 Updates über Pull Requests (wie bei Notator).
+
+Tests: `node tests/run.js` (ohne Abhängigkeiten; prüft Syntax, Kirchenjahr-Regeln inkl. Rückrechnung der Basisjahre aus `tests/events.json`, Register-Hilfsfunktionen, Sync-Zusammenführung und Änderungsverlauf). Vor jedem Push ausführen.

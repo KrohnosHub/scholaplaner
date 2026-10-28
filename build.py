@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Baut index.html aus src/. Aufruf: python3 build.py  (Version wird in sw.js und index.html eingetragen)"""
-import re,sys
+import re,sys,glob
 v=open('VERSION').read().strip()
 s=open('src/shell.html').read()
 def sub(tag,val):
@@ -10,7 +10,7 @@ def sub(tag,val):
 sub('/*CSS*/',open('src/style.css').read())
 sub('<!--BODY-->',open('src/body.html').read())
 sub('/*BOOT*/',open('src/boot.js').read())
-main=open('src/main.js').read()
+main=''.join(open(f).read() for f in sorted(glob.glob('src/js/*.js')))  # Reihenfolge = Dateinamen (00-, 10-, …)
 assert '</script' not in main.lower()
 sub('/*MAIN*/',main)
 s=s.replace('<!--BUILD-->',v)
