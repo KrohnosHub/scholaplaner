@@ -201,3 +201,19 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 #rsheet .rsa{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 @media (max-width:560px){.gsl{display:none}}
 #gsb{white-space:nowrap}
+
+/* Gesänge: Kartenansicht */
+.gcw{display:none}
+body[data-gv="cards"] .gcw{display:block}
+body[data-gv="cards"] #rcards+.tw{display:none}
+.gc{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
+.gc.hid{opacity:.55}.gc.dup{border-color:#c9a227}
+.gct{display:flex;gap:8px}
+.gcn{width:64px;flex:none}.gcm{flex:1;min-width:0}
+.gc input.cell-in{width:100%;box-sizing:border-box;font-size:16px}
+.gcm input{font-weight:600}
+.gci{margin:6px 0}
+.gcl{display:grid;gap:6px;margin-top:6px}
+.gcl>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gcll{width:62px;font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.gcf{display:flex;justify-content:space-between;gap:8px;margin-top:8px;padding-top:6px;border-top:1px solid var(--line);flex-wrap:wrap}

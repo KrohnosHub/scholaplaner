@@ -833,8 +833,8 @@ function viewGes(){
    ${canEdit()?'<button class="btn" id="radd" title="Neuen Eintrag anlegen">+ Eintrag</button> <button class="btn" id="rsync" title="Liest die Notator-Ablage in Google Drive und verknüpft passende Dateien mit den Gesängen">☁ Abgleich</button>':''}
    <details class="more"><summary class="btn" title="Weitere Optionen">⋯</summary><div class="morep">
     <label class="chk"><input type="checkbox" id="rdup" ${S.rdup?'checked':''}> nur ähnliche / doppelte</label>
-    <label class="chk"><input type="checkbox" id="rhid" ${S.rhid?'checked':''}> gelöschte zeigen</label></div></details><span class="count" id="rc"></span></div>
-   <div class="tw stk"><table><thead id="rh"></thead><tbody id="rl"></tbody></table></div>
+    <label class="chk"><input type="checkbox" id="rhid" ${S.rhid?'checked':''}> gelöschte zeigen</label></div></details><button class="btn" id="rvv" title="Ansicht wechseln">Karten</button><span class="count" id="rc"></span></div>
+   <div class="gcw" id="rcards"></div><div class="tw stk"><table><thead id="rh"></thead><tbody id="rl"></tbody></table></div>
    <details class="hintd"><summary>Hinweise</summary><p class="hint">Bezeichnung und Nr. sind direkt änderbar (Schreibweise korrigieren); der ursprüngliche Eintrag wird darunter angezeigt und weiter für die Zuordnung zu den Plänen verwendet. Doppelte oder falsche Einträge mit «löschen» entfernen (direkt «Rückgängig» möglich; über «gelöschte zeigen» jederzeit wiederherstellbar). Spaltenköpfe: Klick = sortieren; Felder darunter = filtern. YouTube-Links erscheinen nur im Scholaplan. Änderungen werden im gemeinsamen Speicher abgelegt.</p></details>`;
 }
 function gget(r){const a=[r.art,r.nr,r.name+' '+r.po+' '+r.fe.join(' '),r.cn||'',r.yt||'',r.on||'','',r.cnt,r.last];return canOrgan()?a:a.filter((_,i)=>i!==5)}
@@ -857,12 +857,18 @@ function drawGes(){
   const cols=gcols(); let l=tblApply(base,gget,cols,S.gst,S.gfl);
   if(S.rdup&&S.gst.c<0) l=l.slice().sort((a,b)=>(a.nr&&cr[a.nr]>1?a.nr:nk(a)).localeCompare(b.nr&&cr[b.nr]>1?b.nr:nk(b),'de',{numeric:true}));
   const ro=!canEdit(); const show=l.slice(0,400);
-  $('#rl').innerHTML=show.map(r=>{
+  const cellsOf=r=>{
     const LAB={cn:'Choral',yt:'YouTube',on:'Orgel'};
     const f=(k)=>ro?(r[k]?lnkHtml(r[k],'Link'):'<span class="muted">–</span>'):`<div class="lkv small">${lnkHtml(r[k],LAB[k])}</div><button class="btn sm" data-lk="${esc(r.key)}" data-f="${k}" title="Links bearbeiten">${r[k]?'✎ bearbeiten':'＋ Link'}</button>`;
     const chg=r.name!==r.orig||r.nr!==r.onr;
     const ed=(k,v,w)=>ro?esc(v):`<input class="cell-in" style="min-width:${w}px" type="text" data-k="${esc(r.key)}" data-f="${k}" value="${esc(v)}">`;
-    return `<tr class="${r.hide?'hid':''}${isDup(r)?' dup':''}"><td class="small muted">${esc(r.art)}</td><td class="num">${ed('nr',r.nr,70)}</td><td>${ed('nm',r.name,220)}<div class="small muted">${ntBlock(r)}${ro?'':` <button class="btn sm" data-nt="${esc(r.key)}" title="Notator-Datei aus Google Drive manuell verknüpfen">🔗 Datei</button>`} · ${chg?'urspr.: '+esc(stripCnt(r.orig))+(r.nr!==r.onr?' ('+esc(r.onr||'ohne Nr.')+')':'')+' · ':''}${esc(r.po)}${r.fe.length||r.fx?' · <span title="Feste, an denen der Gesang vorgesehen ist">Feste:</span> '+(r.fe.length?r.fe.map(x=>'<span class="pill">'+esc(x)+'</span>').join(' '):'<span class="muted">keine</span>')+(r.fx?' <span class="pill ok" title="manuell festgelegt – fliesst in neue Pläne ein">angepasst</span>':''):''}${ro?'':` <button class="btn sm" data-fe="${esc(r.key)}" title="Position und Feste bearbeiten">✎ Feste</button>`}</div></td><td>${f('cn')}</td><td>${f('yt')}</td>${canOrgan()?`<td>${f('on')}</td>`:''}<td class="small">${isDup(r)?'<span class="pill warn">ähnlich</span> ':''}<label class="chk"><input type="checkbox" data-k="${esc(r.key)}" data-f="hide" ${r.hide?'checked':''}> ${r.hide?'gelöscht – wiederherstellen':'löschen'}</label></td><td class="num muted">${esc(r.cnt)}</td><td class="num muted">${esc(r.last)}</td></tr>`}).join('')||`<tr><td colspan="9" class="muted">Keine Treffer.</td></tr>`;
+    const info=`${ntBlock(r)}${ro?'':` <button class="btn sm" data-nt="${esc(r.key)}" title="Notator-Datei aus Google Drive manuell verknüpfen">🔗 Datei</button>`} · ${chg?'urspr.: '+esc(stripCnt(r.orig))+(r.nr!==r.onr?' ('+esc(r.onr||'ohne Nr.')+')':'')+' · ':''}${esc(r.po)}${r.fe.length||r.fx?' · <span title="Feste, an denen der Gesang vorgesehen ist">Feste:</span> '+(r.fe.length?r.fe.map(x=>'<span class="pill">'+esc(x)+'</span>').join(' '):'<span class="muted">keine</span>')+(r.fx?' <span class="pill ok" title="manuell festgelegt – fliesst in neue Pläne ein">angepasst</span>':''):''}${ro?'':` <button class="btn sm" data-fe="${esc(r.key)}" title="Position und Feste bearbeiten">✎ Feste</button>`}`, dele=`${isDup(r)?'<span class="pill warn">ähnlich</span> ':''}<label class="chk"><input type="checkbox" data-k="${esc(r.key)}" data-f="hide" ${r.hide?'checked':''}> ${r.hide?'gelöscht – wiederherstellen':'löschen'}</label>`;
+    const cls=(r.hide?'hid':'')+(isDup(r)?' dup':'');
+    const tr=`<tr class="${cls}"><td class="small muted">${esc(r.art)}</td><td class="num">${ed('nr',r.nr,70)}</td><td>${ed('nm',r.name,220)}<div class="small muted">${info}</div></td><td>${f('cn')}</td><td>${f('yt')}</td>${canOrgan()?`<td>${f('on')}</td>`:''}<td class="small">${dele}</td><td class="num muted">${esc(r.cnt)}</td><td class="num muted">${esc(r.last)}</td></tr>`;
+    const card=`<article class="gc ${cls}"><div class="gct"><span class="gcn">${ed('nr',r.nr,0)}</span><span class="gcm">${ed('nm',r.name,0)}</span></div><div class="small muted gci">${esc(r.art)} · ${info}</div><div class="gcl"><div><span class="gcll">Choral</span>${f('cn')}</div><div><span class="gcll">YouTube</span>${f('yt')}</div>${canOrgan()?`<div><span class="gcll">Orgel</span>${f('on')}</div>`:''}</div><div class="gcf small">${dele}<span class="muted">${esc(r.cnt)}× · zuletzt ${esc(r.last||'–')}</span></div></article>`;
+    return {tr,card}};
+  $('#rl').innerHTML=show.map(r=>cellsOf(r).tr).join('')||`<tr><td colspan="9" class="muted">Keine Treffer.</td></tr>`;
+  $('#rcards').innerHTML=show.map(r=>cellsOf(r).card).join('')||'<p class="muted">Keine Treffer.</p>';
   $('#rc').textContent=l.length+' Einträge'+(l.length>400?' (erste 400)':'');
 }
 
@@ -1053,9 +1059,13 @@ function bindGes(){
   $('#rdup').onchange=e=>{S.rdup=e.target.checked;drawGes()};
   $('#rhid').onchange=e=>{S.rhid=e.target.checked;drawGes()};
   tblBind($('#rh'),S.gst,S.gfl,drawGes,drawGesHead);
-  $('#rl').oninput=e=>{const k=e.target.dataset.k;if(!k||e.target.dataset.f==='hide')return;S.reg[k]=S.reg[k]||{};const f=e.target.dataset.f;S.reg[k][f]=e.target.value.trim();if(f==='nr')S.reg[k].nrs=true;const lv=e.target.parentNode.querySelector('.lkv');if(lv)lv.innerHTML=lnkHtml(e.target.value,lv.dataset.lab);save();regPut(k)};
-  $('#rl').onclick=e=>{const b=e.target.closest('[data-fe]');if(b)editFeste(b.dataset.fe);const n=e.target.closest('[data-nt]');if(n)linkNt(n.dataset.nt);const lk=e.target.closest('[data-lk]');if(lk&&!e.target.closest('a'))editLinks(lk.dataset.lk,lk.dataset.f)};
-  $('#rl').onchange=e=>{const k=e.target.dataset.k;if(!k)return;if(e.target.dataset.f==='hide'){S.reg[k]=S.reg[k]||{};const on=e.target.checked;S.reg[k].hide=on;save();regPut(k);drawGes();if(on)toast('Eintrag gelöscht',()=>{S.reg[k].hide=false;save();regPut(k);drawGes()})}else if(e.target.dataset.f==='nm'||e.target.dataset.f==='nr')drawGes()};
+  const hI=$('#rl').oninput=e=>{const k=e.target.dataset.k;if(!k||e.target.dataset.f==='hide')return;S.reg[k]=S.reg[k]||{};const f=e.target.dataset.f;S.reg[k][f]=e.target.value.trim();if(f==='nr')S.reg[k].nrs=true;const lv=e.target.parentNode.querySelector('.lkv');if(lv)lv.innerHTML=lnkHtml(e.target.value,lv.dataset.lab);save();regPut(k)};
+  const hK=$('#rl').onclick=e=>{const b=e.target.closest('[data-fe]');if(b)editFeste(b.dataset.fe);const n=e.target.closest('[data-nt]');if(n)linkNt(n.dataset.nt);const lk=e.target.closest('[data-lk]');if(lk&&!e.target.closest('a'))editLinks(lk.dataset.lk,lk.dataset.f)};
+  const hC=$('#rl').onchange=e=>{const k=e.target.dataset.k;if(!k)return;if(e.target.dataset.f==='hide'){S.reg[k]=S.reg[k]||{};const on=e.target.checked;S.reg[k].hide=on;save();regPut(k);drawGes();if(on)toast('Eintrag gelöscht',()=>{S.reg[k].hide=false;save();regPut(k);drawGes()})}else if(e.target.dataset.f==='nm'||e.target.dataset.f==='nr')drawGes()};
+  const gvNow=()=>LS.get('sp.gv',innerWidth<=700?'cards':'table');
+  const gvApply=()=>{document.body.dataset.gv=gvNow();const b=$('#rvv');if(b)b.textContent=gvNow()==='cards'?'Tabelle':'Karten';fitStk()};
+  {const c=$('#rcards');c.oninput=hI;c.onclick=hK;c.onchange=hC}
+  gvApply();$('#rvv').onclick=()=>{LS.set('sp.gv',gvNow()==='cards'?'table':'cards');gvApply()};
   const sy=$('#rsync'); if(sy) sy.onclick=driveSync;
   const a=$('#radd'); if(a) a.onclick=()=>{const name=(prompt('Incipit / Bezeichnung des neuen Eintrags:')||'').trim();if(!name)return;
     {const c={art:S.rart||'Schola-Gesang (Proprium/Choral)',nr:'',name};S.custom.push(c);dbPut('eigene',regKey(c.art,'',c.name),{art:c.art,nr:'',name:c.name})}save();toast('Eintrag angelegt');drawGes()};
