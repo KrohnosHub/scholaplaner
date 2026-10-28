@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 36 -->
+<!-- Build 37 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -169,7 +169,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 36</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 37</small></div>
     <div class="sync" id="sync" title="Speicherort der Änderungen">…</div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -344,7 +344,7 @@ async function initDb(){
     try{await GD.token(true);await initDb.go()}catch(err){setSync(String(err&&err.message||err),true,true)}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&GD.cached()){pull().then(flush)}});
   setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
-  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis()};
+  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis()};
   if(GD.cached()) initDb.go(); else setSync('Nicht angemeldet',true,true);
 }
 function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}
@@ -1293,7 +1293,7 @@ function regFixes(say){
   const put=r=>{save();regPut(r.key)};
   const cur=r=>REG().find(x=>x.key===r.key)||r;
   const addL=(r,f,fid,label)=>{r=cur(r);const o=ob(r),l=parseLinks(r[f]||'');
-    if(l.some(x=>x.u.includes(fid))){const x=l.find(y=>y.u.includes(fid));if(x.l!==label){x.l=label;o[f]=lnkStr(l);put(r)}return}
+    if(l.some(x=>x.u.includes(fid))){const x=l.find(y=>y.u.includes(fid));if(cleanLab(x.l)!==cleanLab(label)){x.l=label;o[f]=lnkStr(l);put(r)}return}
     l.push({l:label,u:fileUrl(fid)});o[f]=lnkStr(l);put(r);say('verlinkt: '+label+' → '+r.name)};
   const delL=(r,f,fid)=>{r=cur(r);const l=parseLinks(r[f]||'');if(!l.some(x=>x.u.includes(fid)))return;const o=ob(r);
     const n=l.filter(x=>!x.u.includes(fid));o[f]=n.length?lnkStr(n):'-';put(r)};
@@ -1311,14 +1311,24 @@ function regFixes(say){
     delL(g,'cn','1-WXaDFV4AWr2WmiuZt1PleRtkihx1ikV'); delL(g,'on','1dQH7eRFzMv_Gor6gorulTrBelcyAXjDX'); delL(g,'on','1stgZVmFNNHo6GTNyMMWzEPXd_D3QnE-p');
     {const gc=cur(g),bad=['Rosenkranzsonntag','Herz-Jesu-Freitag'];if(gc.fe.some(x=>bad.includes(x))){ob(g).fe=gc.fe.filter(x=>!bad.includes(x));put(g)}}
     setNm(g,'Gaudeamus... sanctorum omnium');
-    const lc=parseLinks(cur(g).cn||''),x=lc.find(y=>y.u.includes('18KCl-rAaPXHV46nr7TL6U2DAJFSx-2iy'));if(x&&x.l!=='Choral'){x.l='Choral';ob(g).cn=lnkStr(lc);put(g)}
-    const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&y.l!=='Choral (aus Sammel-PDF)'){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
+    const lc=parseLinks(cur(g).cn||''),x=lc.find(y=>y.u.includes('18KCl-rAaPXHV46nr7TL6U2DAJFSx-2iy'));if(x&&cleanLab(x.l)!==cleanLab('Choral')){x.l='Choral';ob(g).cn=lnkStr(lc);put(g)}
+    const y=lc.find(z=>z.u.includes('16sshn07UU6ZXIb0vWdD9A0aN6cJ-Synn'));if(y&&cleanLab(y.l)!==cleanLab('Choral (aus Sammel-PDF)')){y.l='Choral (aus Sammel-PDF)';ob(g).cn=lnkStr(lc);put(g)}}
   /* Allerheiligen: nur dort getaggte Gesänge als feste Zuordnung (Override) führen, damit sie im Schola-Reiter / bei neuen Plänen erscheinen */
   REG().filter(x=>x.art===A&&!x.hide&&!x.fx&&x.fe.length===1&&x.fe[0]==='Allerheiligen (1.11.)').forEach(x=>{ob(x).fe=['Allerheiligen (1.11.)'];put(x);say('Allerheiligen zugeordnet: '+x.name)});
   /* gespeicherte Pläne: alter Gaudeamus-Titel */
   for(const k in S.termine){const t=S.termine[k];if(!t||!Array.isArray(t.rows))continue;let ch=false;
     t.rows.forEach(r=>{if(r&&r.t&&/^Gaudeamus\.\.\. (omnium sanctorum|Sanctorum omnium)$/.test(r.t.trim())){r.t='Gaudeamus... sanctorum omnium';ch=true}});
     if(ch){save();dbPut('termine',k)}}
+  /* Orgel-PDFs, die im Choral-Feld standen: ins Orgel-Feld verschieben */
+  ['1gr0A5-sbBiYzgqaTCp657IoGYs1UwphN','1q1b7nQ6Z8Duba0zPFmQb6P-K5IoihLss','1p1QpYrtOqvRo1mV-p5uxEh8-JRXxePdW','1aqWwntpr32L7bMszONJ8MRyDS5vk-lba','1vgX0Mny7bs4sXFEjZFUh_-Y7fa2IeIfo','1gmpKzaK0Iegx3Jl__Io5ua7y4GE5COUd','13rUw1k2BzXiFc79bqbPPb2bGVi19PesN'].forEach(fid=>{
+    REG().filter(x=>x.art===A&&(x.cn||'').includes(fid)).forEach(x=>{delL(x,'cn',fid);addL(x,'on',fid,'Orgel');say('Orgel-PDF ins Orgel-Feld verschoben: '+x.name)})});
+  /* Ecce virgo: doppelte Einträge zusammenführen */
+  {const eb=REG().find(x=>x.art===A&&x.orig==='Ecce vírgo concípient'&&x.base), ed=REG().find(x=>x.art===A&&x.orig==='Ecce virgo concipiet'&&!x.base&&!x.hide);
+   if(eb&&ed){addL(eb,'cn','1n82bo3MgZhCL0A1981kPcRHGGFfEjLjP','Choral');setNm(eb,'Ecce vírgo concípiet');ob(ed).hide=true;put(ed);say('Zusammengeführt: Ecce virgo concipiet → '+eb.name)}}
+  /* Notator-Dateien, die noch nirgends verlinkt waren */
+  [['Tantum ergo X (SR 469)',AG,'1QC8Rp3vskQay8HKOz_4TxfFqBMhJ9972'],['Libera me',A,'1wj5g4qO3N1ppeFinEVMl5LAEXjSlJR3q'],['Alleluia Pfingsten',A,'1Eth6CyzkJU1OWCHYfoApd_SaH2NSYOQf']].forEach(([key,art,fid])=>{
+    const k=splNrm(key),c=REG().filter(x=>x.art===art&&!x.hide);const r=c.find(x=>splNrm(x.orig)===k)||c.find(x=>splNrm(x.orig).startsWith(k));
+    if(r&&!cur(r).nt&&!ob(r).nt){ob(r).nt=fileUrl(fid);put(r);say('Notator-Datei verlinkt: '+r.name)}});
   /* Adorémus in aetérnum: Allerheiligen-Tag war falsch (steht in keinem Allerheiligen-Plan) */
   REG().filter(x=>x.art===A&&/^Adorémus in aetérnum/i.test(x.orig)&&x.fe.includes('Allerheiligen (1.11.)')).forEach(x=>{ob(x).fe=x.fe.filter(f=>f!=='Allerheiligen (1.11.)');put(x);say('Allerheiligen-Tag entfernt: '+x.name)});
   /* Libera me (Requiem, Absolutio) */
@@ -1368,11 +1378,14 @@ const FLINKS=[
  ['1tUGNEJ7bCKqosThnAYvS_DbWeIf43vfL',AG,'Tantum ergo V (SR 464)','Tantum ergo V','on','Orgel','SR 464'],
  ['1li597MceuUcO8UYCFsXFSBAuoz5cpNQF',AG,'Tantum ergo IX (SR 468)','Tantum ergo IX','on','Orgel','SR 468'],
  ['1kEHh--ELs-71TP84CkrFtuxsZzoZJrUx',AG,'Tantum ergo X (SR 469)','Tantum ergo X','on','Orgel','SR 469'],
- ['15C05enKcdTcgkFN1rM7s3fBYjkFktfZd',AS,'Libera me','Libera me','on','Orgel']];
-async function linkFolderFiles(out){
-  const say=t=>{out.innerHTML+=esc(t)+'<br>'};
-  out.innerHTML=''; let made=0,linked=0;
-  regFixes(say);
+ ['15C05enKcdTcgkFN1rM7s3fBYjkFktfZd',AS,'Libera me','Libera me','on','Orgel'],
+ ['1fruVcmm_XdAa_JnQrZu0Gsaur4K50Z-F',AS,'Libera me','Libera me','cn','Choral'],
+ ['1ND_fiSvz1BjvuwqzH63CwyN0yBcfnFGv',AS,'Mittit ad virginem','','on','Orgel'],
+ ['1kGCIrC1w5spe4g0rKt_nD2LIeI6XPY4G',AG,'Tantum ergo V (SR 464)','Tantum ergo V','cn','Choral','SR 464'],
+ ['1BvTnEcF2oULtJljaRwknf4VfAvNdjMHt',AG,'Tantum ergo IX (SR 468)','Tantum ergo IX','cn','Choral','SR 468'],
+ ['12fn01s09v_Ccl5LQ8QScrcvDOoIYTZp1',AG,'Tantum ergo X (SR 469)','Tantum ergo X','cn','Choral','SR 469']];
+function folderLinks(say){
+  let made=0,linked=0;
   for(const [id,art,key,entry,f,label,nr,pos,fest] of FLINKS){
     const k=splNrm(key),c=REG().filter(x=>x.art===art&&!x.hide);
     let r=c.find(x=>splNrm(x.orig)===k)||c.find(x=>splNrm(x.orig).startsWith(k))||c.find(x=>{const o=splNrm(x.orig);return o.length>=7&&k.startsWith(o)});
@@ -1385,6 +1398,12 @@ async function linkFolderFiles(out){
     l.push({l:label,u:fileUrl(id)}); ob[f]=lnkStr(l); save(); regPut(r.key); linked++;
     say('verlinkt: '+label+' → '+r.name)}
   for(const k in AUTO)delete AUTO[k];
+  return {made,linked}}
+async function linkFolderFiles(out){
+  const say=t=>{out.innerHTML+=esc(t)+'<br>'};
+  out.innerHTML='';
+  regFixes(say);
+  const {made,linked}=folderLinks(say);
   say(linked+' Links ergänzt, '+made+' Einträge neu.'); toast(linked+' Links ergänzt'+(made?', '+made+' Einträge neu':''));
 }
 
