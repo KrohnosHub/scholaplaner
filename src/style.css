@@ -143,3 +143,5 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
  .ed input,.ed select{padding:3px 6px}
  .ed td.c-pos input{font-weight:600}
 }
+
+.chkd{padding:10px 14px}.chkd>summary{cursor:pointer}.chkb{margin-top:8px}.chkl{margin:4px 0;padding-left:18px}.chkl li{margin:2px 0}.chkg{padding:4px 0;border-bottom:1px solid var(--line)}
