@@ -1203,6 +1203,7 @@ function viewDaten(){
      ${canEdit()?'<label class="btn">Importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>':''}</div>
      <p class="hint">Änderungen bleiben nur in diesem Browser. Zum Teilen mit anderen: Export als JSON, andere importieren die Datei. Eine gemeinsame Datenhaltung (Google Sheet) kommt als nächster Schritt.</p></div>
    ${verlaufCard()}
+   ${offlineCard()}
    ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>
    <div class="card"><h2>Ordner-Dateien verlinken</h2><p class="small">Verlinkt PDFs aus dem Drive-Hauptordner, die noch bei keinem Gesang hinterlegt sind (ca. 40), und legt dafür fehlende Einträge an. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="lnksplit">Nachtragen</button><div class="small" id="lnkres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27').map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
@@ -1222,7 +1223,7 @@ function bindDaten(){
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
   const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{overlayState(JSON.parse(r.result));toast('Importiert');render()}catch(err){toast('Datei nicht lesbar')}};r.readAsText(f)};
-  bindVerlauf();
+  bindVerlauf();bindOffline();
 }
 
 /* ---------- Backup (Drive-Schnappschuss) + Änderungsverlauf ---------- */
@@ -1386,6 +1387,40 @@ document.addEventListener('keydown',e=>{
   const t=e.target,ed=t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName)||t&&t.isContentEditable;
   if((e.key==='/'&&!ed&&!e.ctrlKey&&!e.metaKey)||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k')){e.preventDefault();gsOpen()}});
 
+/* ---------- Offline-Paket: Orgel-/Choral-PDFs der nächsten Termine lokal speichern (IndexedDB), im Spielmodus ohne Netz öffnen ---------- */
+const driveId=u=>{const m=/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]+)/.exec(u||'');return m?m[1]:null};
+function offlineIds(n){
+  const today=new Date().toISOString().slice(0,10),reg=REG(),ids=new Map();
+  EV.filter(e=>e.d>=today).sort((a,b)=>a.d.localeCompare(b.d)).slice(0,n).forEach(e=>{
+    getTermin(e).rows.filter(r=>isChant(r)).forEach(r=>{const c=lookupChant(r,reg);if(!c)return;
+      [c.on,c.cn].filter(Boolean).forEach(f=>parseLinks(lnkStr(linksFor(f,r.p))).forEach(x=>{const id=driveId(x.u);if(id&&!ids.has(id))ids.set(id,(x.l||c.name))}))})});
+  return ids}
+async function offlinePack(n,log){
+  const ids=offlineIds(n);let ok=0,skip=0,fail=0,bytes=0,i=0;
+  const have=new Set(LS.get('sp.off',[]));
+  for(const [id,nm] of ids){i++;log(`Lade ${i}/${ids.size}: ${nm} …`);
+    try{if(have.has(id)&&await idbGet('pdf:'+id)){skip++;continue}
+      const r=await GD.fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{},false);const b=await r.blob();
+      await idbSet('pdf:'+id,b);have.add(id);bytes+=b.size;ok++}catch(e){fail++;console.warn('offline',id,e)}}
+  LS.set('sp.off',[...have]);LS.set('sp.offms',Date.now());
+  return {n:ids.size,ok,skip,fail,mb:(bytes/1048576).toFixed(1)}}
+async function offlineClear(){const h=LS.get('sp.off',[]);for(const id of h)await idbSet('pdf:'+id,null);LS.set('sp.off',[])}
+/* Links im Spielmodus auf lokale Kopie umbiegen, wo vorhanden */
+async function offlineLinks(root){
+  const have=new Set(LS.get('sp.off',[]));if(!have.size)return;
+  for(const a of root.querySelectorAll('a[href]')){const id=driveId(a.getAttribute('href'));if(!id||!have.has(id))continue;
+    const b=await idbGet('pdf:'+id);if(b&&b.size){a.href=URL.createObjectURL(b.type?b:new Blob([b],{type:'application/pdf'}));a.dataset.off='1';a.textContent+=' ✓'}}}
+function offlineCard(){const n=LS.get('sp.off',[]).length,ms=LS.get('sp.offms',0);
+  return `<div class="card"><h2>Offline-Paket (Orgel-Tablet)</h2><p class="small">Lädt die Orgel- und Choralnoten (PDF aus Drive) der nächsten Termine auf dieses Gerät. Im <i>Spielmodus</i> öffnen sich diese Noten danach ohne Netz (mit ✓). Nur Drive-Dateien; andere Links brauchen Netz.</p>
+  <p class="small muted">${n?n+' Dateien gespeichert'+(ms?' (Stand '+fmtDT(ms)+')':''):'Noch nichts gespeichert.'}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label class="small">Nächste <select id="offn"><option>4</option><option selected>8</option><option>12</option><option>20</option></select> Termine</label><button class="btn pri" id="offgo">Herunterladen</button>${n?'<button class="btn" id="offdel">Löschen</button>':''}</div><div class="small" id="offres" style="margin-top:8px"></div></div>`}
+function bindOffline(){
+  const g=$('#offgo');if(g)g.onclick=async()=>{const r=$('#offres');g.disabled=true;
+    try{if(!GD.cached())throw new Error('Nicht bei Google angemeldet');const x=await offlinePack(+$('#offn').value,t=>{r.textContent=t});
+      r.innerHTML=`Fertig: ${x.n} Dateien im Paket, ${x.ok} neu geladen (${x.mb} MB), ${x.skip} schon vorhanden${x.fail?', <b style="color:#a8322d">'+x.fail+' fehlgeschlagen</b>':''}.`}
+    catch(e){r.innerHTML='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}g.disabled=false};
+  const d=$('#offdel');if(d)d.onclick=async()=>{if(!confirm('Lokal gespeicherte Noten-Dateien löschen? (In Drive bleibt alles.)'))return;await offlineClear();toast('Gelöscht');render()}}
+
 /* ---------- Spielmodus für den Organisten: grosse Ansicht, Orgelnoten-Links, Vor/Zurück, Bildschirm bleibt an ---------- */
 let _wl=null;
 async function playWake(on){try{if(on){if(navigator.wakeLock&&!_wl){_wl=await navigator.wakeLock.request('screen');_wl.addEventListener('release',()=>{_wl=null})}}else if(_wl){await _wl.release();_wl=null}}catch(e){}}
@@ -1412,7 +1447,7 @@ function playOpen(key){
     if(e.target.closest('#pmn')&&next){playOpen(next.key);return}
     if(e.target.closest('a'))return;
     const r=e.target.closest('.pr');if(r)r.classList.toggle('done')};
-  el.scrollTop=0;document.body.style.overflow='hidden';playWake(true);
+  el.scrollTop=0;document.body.style.overflow='hidden';playWake(true);offlineLinks(el);
 }
 document.addEventListener('keydown',e=>{const el=$('#pm');if(!el)return;
   if(e.key==='Escape')playClose();
