@@ -1353,6 +1353,37 @@ function bindChk(){
     const n=applyFestChanges([],rem);toast(rem.length+' Tag'+(rem.length===1?'':'s')+' bei '+n+' Gesängen entfernt');render()};
 }
 
+/* ---------- Globale Suche: Termine, Gesänge, Liederbuch, Pläne (Titel und Plan-Zeilen) ---------- */
+function gsSearch(qs){
+  const q=norm(qs.trim());if(q.length<2)return [];
+  const out=[],lim=(t,a,n)=>{if(a.length)out.push({t,a:a.slice(0,n),more:Math.max(0,a.length-n)})};
+  lim('Termine',EV.filter(e=>norm(e.n+' '+e.d+' '+fmtD(e.d)+' '+(e.note||'')).includes(q)).map(e=>({l:fmtD(e.d)+' · '+e.n,s:e.kj,go:()=>{S.sel=e.key;S.kj=e.kj;S.tab='termin'}})),6);
+  lim('Gesänge (Choral)',REG().filter(r=>!r.hide&&norm(r.name+' '+(r.nr||'')+' '+(r.nm||'')).includes(q)).map(r=>({l:r.name,s:(r.fe&&r.fe.length?r.fe.slice(0,3).join(', '):'')+(r.nr?' · '+r.nr:''),go:()=>{S.rq=r.name;S.rart='';S.rfile='';S.rdup=false;S.tab='ges'}})),8);
+  lim('Liederbuch',D.hym.filter(h=>norm(h[1]+' '+h[2]).includes(q)).map(h=>({l:(h[0]==='SR'&&/^\d+/.test(h[1])?'SR '+h[1]+' · ':'')+h[2],s:h[0]+(h[3]?' · '+h[3]:''),go:()=>{S.hq=h[2];S.hbook=h[0];S.hber='';S.tab='lb'}})),8);
+  lim('Pläne (Titel)',D.plans.filter(p=>norm(p.c+' '+p.t+' '+(p.y||'')).includes(q)).map(p=>({l:p.t,s:p.c+(p.y?' · '+p.y:''),go:()=>{S.aq=p.t;S.tab='arch'}})),6);
+  const hit=[];D.plans.forEach(p=>{const m=p.r.map(rowFromArr).filter(r=>norm(r.t||'').includes(q));if(m.length)hit.push({l:m[0].t,s:p.c+' · '+p.t+(p.y?' ('+p.y+')':''),go:()=>{S.aq=p.t;S.tab='arch'}})});
+  lim('In Plan-Zeilen verwendet',hit,8);
+  return out}
+function gsOpen(){
+  let el=$('#gs');
+  if(!el){el=document.createElement('div');el.id='gs';el.innerHTML='<div class="gbox"><input type="search" id="gsq" placeholder="Suche in Terminen, Gesängen, Liederbuch, Plänen …" autocomplete="off"><div class="gres" id="gsr"></div></div>';document.body.appendChild(el);
+    const draw=()=>{const res=gsSearch($('#gsq').value);window._gsr=[];
+      $('#gsr').innerHTML=!$('#gsq').value.trim()?'<p class="small muted" style="padding:10px 14px">Mindestens 2 Zeichen eingeben. Enter öffnet den ersten Treffer, Esc schliesst.</p>':res.length?res.map(g=>`<h4>${g.t}</h4>`+g.a.map(x=>{window._gsr.push(x);return `<button class="gi" data-i="${window._gsr.length-1}">${esc(x.l)}${x.s?`<small>${esc(x.s)}</small>`:''}</button>`}).join('')+(g.more?`<p class="small muted" style="margin:2px 14px">… ${g.more} weitere</p>`:'')).join(''):'<p class="small muted" style="padding:10px 14px">Keine Treffer.</p>'};
+    const go=i=>{const x=window._gsr[i];if(!x)return;x.go();gsClose();render();scrollTo(0,0)};
+    $('#gsq').oninput=draw;
+    $('#gsq').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();go(0)}else if(e.key==='ArrowDown'){const b=$('#gsr .gi');if(b){e.preventDefault();b.focus()}}};
+    $('#gsr').onkeydown=e=>{const f=document.activeElement;if(e.key==='ArrowDown'&&f.nextElementSibling){let n=f.nextElementSibling;while(n&&!n.classList.contains('gi'))n=n.nextElementSibling;if(n){e.preventDefault();n.focus()}}
+      else if(e.key==='ArrowUp'){let n=f.previousElementSibling;while(n&&!n.classList.contains('gi'))n=n.previousElementSibling;e.preventDefault();(n||$('#gsq')).focus()}};
+    $('#gsr').onclick=e=>{const b=e.target.closest('.gi');if(b)go(+b.dataset.i)};
+    el.onclick=e=>{if(e.target===el)gsClose()};draw()}
+  el.hidden=false;$('#gsq').focus();$('#gsq').select()}
+function gsClose(){const el=$('#gs');if(el)el.hidden=true}
+$('#gsb').onclick=gsOpen;
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){gsClose();return}
+  const t=e.target,ed=t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName)||t&&t.isContentEditable;
+  if((e.key==='/'&&!ed&&!e.ctrlKey&&!e.metaKey)||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k')){e.preventDefault();gsOpen()}});
+
 /* --- Start --- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){S.tab=b.dataset.tab;render();scrollTo(0,0)}});
 // Beispielstart: nächster Termin ab heute

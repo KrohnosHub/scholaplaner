@@ -145,3 +145,13 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 }
 
 .chkd{padding:10px 14px}.chkd>summary{cursor:pointer}.chkb{margin-top:8px}.chkl{margin:4px 0;padding-left:18px}.chkl li{margin:2px 0}.chkg{padding:4px 0;border-bottom:1px solid var(--line)}
+
+#gs{position:fixed;inset:0;background:rgba(10,14,25,.55);z-index:9000;display:flex;justify-content:center;align-items:flex-start;padding:max(env(safe-area-inset-top,0px),16px) 12px 12px}
+#gs[hidden]{display:none}
+#gs .gbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;width:100%;max-width:640px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;overflow:hidden}
+#gs input{width:100%;font-size:17px;padding:12px 14px;border:0;border-bottom:1px solid var(--line);border-radius:0;box-sizing:border-box}
+#gs .gres{overflow:auto;padding:4px 0}
+#gs h4{margin:10px 14px 2px;font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+#gs .gi{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font:inherit;padding:7px 14px;cursor:pointer}
+#gs .gi:hover,#gs .gi:focus{background:var(--surface2);outline:0}
+#gs .gi small{display:block;color:var(--muted)}
