@@ -425,6 +425,7 @@ function viewTermin(){
      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
        <button class="btn pri" id="pdf">PDF ${S.prev==='lieder'?'Liederplan':'Scholaplan'}</button>
        <button class="btn" id="copy">Text kopieren</button>
+       <button class="btn" id="play">▶ Spielmodus</button>
      </div>
      <p class="hint" style="margin-top:8px">Der Liederplan enthält nie YouTube-Links und ist zum Weitergeben gedacht.</p>
     </div><div id="abg"></div></div></div>`;
@@ -593,6 +594,7 @@ function bindTermin(){
   const nv=$('#nver'); if(nv) nv.onchange=e=>{S.nver=e.target.checked;LS.set('sp.nver',S.nver);pv()};
   $('#copy').onclick=async()=>{const tx=planText(ev,t);try{await navigator.clipboard.writeText(tx);toast('Liederplan kopiert')}catch(e){const ta=document.createElement('textarea');ta.value=tx;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Liederplan kopiert')}catch(_){toast('Kopieren nicht möglich')}ta.remove()}};
   $('#pdf').onclick=()=>makePdf(ev,t,S.prev==='schola'&&canSchola());
+  $('#play').onclick=()=>playOpen(ev.key);
 }
 
 /* --- Abgleich Vorschlag / tatsächlicher Plan --- */
@@ -1383,6 +1385,40 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){gsClose();return}
   const t=e.target,ed=t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName)||t&&t.isContentEditable;
   if((e.key==='/'&&!ed&&!e.ctrlKey&&!e.metaKey)||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k')){e.preventDefault();gsOpen()}});
+
+/* ---------- Spielmodus für den Organisten: grosse Ansicht, Orgelnoten-Links, Vor/Zurück, Bildschirm bleibt an ---------- */
+let _wl=null;
+async function playWake(on){try{if(on){if(navigator.wakeLock&&!_wl){_wl=await navigator.wakeLock.request('screen');_wl.addEventListener('release',()=>{_wl=null})}}else if(_wl){await _wl.release();_wl=null}}catch(e){}}
+function playClose(){const el=$('#pm');if(el)el.remove();playWake(false);document.body.style.overflow=''}
+function playOpen(key){
+  const ev=evByKey[key];if(!ev)return;
+  const t=getTermin(ev),reg=REG();
+  const rows=t.rows.filter(r=>r.t||r.n||r.k==='O');
+  const i=EV.indexOf(ev),prev=EV[i-1],next=EV[i+1];
+  let el=$('#pm');if(!el){el=document.createElement('div');el.id='pm';document.body.appendChild(el)}
+  const rh=rows.map((r,n)=>{
+    const c=isChant(r)?lookupChant(r,reg):null;
+    const lk=[];
+    if(c&&c.on)lk.push(lnkHtml(lnkStr(linksFor(c.on,r.p)),'Orgel').replace(/class="l1"/g,'class="pmb org"'));
+    if(c&&c.cn)lk.push(lnkHtml(lnkStr(linksFor(c.cn,r.p)),'Choral').replace(/class="l1"/g,'class="pmb"'));
+    return `<div class="pr" data-n="${n}"><div class="pp">${esc(r.p)}</div><div class="pt"><span class="pn">${esc(rowNr(r))}</span>${esc(rowTitle(r))}</div>${r.o?`<div class="po">Orgel: ${esc(r.o)}</div>`:''}${lk.length?`<div class="pl">${lk.join('')}</div>`:''}</div>`}).join('');
+  el.innerHTML=`<div class="ph"><button class="btn" id="pmx">✕ Schliessen</button><div class="pnav"><button class="btn" id="pmp" ${prev?'':'disabled'} title="${prev?esc(prev.n):''}">←</button><button class="btn" id="pmn" ${next?'':'disabled'} title="${next?esc(next.n):''}">→</button></div></div>
+   <h2>${esc(ev.n)}</h2><div class="psub">${wdOf(ev.d)}, ${fmtD(ev.d)}${t.sch&&t.sch!=='keine'?' · Schola: '+esc(t.sch):''}</div>
+   ${rows.length?rh:'<p class="psub">Noch keine Zeilen.</p>'}
+   <p class="psub" style="margin-top:18px">Zeile antippen = abhaken.${_wl?' Bildschirm bleibt an.':''}</p>`;
+  el.onclick=e=>{
+    if(e.target.closest('#pmx')){playClose();return}
+    if(e.target.closest('#pmp')&&prev){playOpen(prev.key);return}
+    if(e.target.closest('#pmn')&&next){playOpen(next.key);return}
+    if(e.target.closest('a'))return;
+    const r=e.target.closest('.pr');if(r)r.classList.toggle('done')};
+  el.scrollTop=0;document.body.style.overflow='hidden';playWake(true);
+}
+document.addEventListener('keydown',e=>{const el=$('#pm');if(!el)return;
+  if(e.key==='Escape')playClose();
+  else if(e.key==='ArrowRight'){const b=$('#pmn');if(b&&!b.disabled)b.click()}
+  else if(e.key==='ArrowLeft'){const b=$('#pmp');if(b&&!b.disabled)b.click()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&$('#pm'))playWake(true)});
 
 /* --- Start --- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){S.tab=b.dataset.tab;render();scrollTo(0,0)}});

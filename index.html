@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 40 -->
+<!-- Build 41 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -169,6 +169,24 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 #gs .gi:hover,#gs .gi:focus{background:var(--surface2);outline:0}
 #gs .gi small{display:block;color:var(--muted)}
 
+#pm{position:fixed;inset:0;z-index:8500;background:var(--bg);color:var(--ink);overflow:auto;padding:max(env(safe-area-inset-top,0px),12px) 16px 40px}
+#pm>*{max-width:900px;margin-left:auto;margin-right:auto}
+#pm .ph{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
+#pm .pnav{display:flex;gap:8px}
+#pm .btn{padding:12px 18px;font-size:18px}
+#pm h2{font-size:30px;margin:6px auto 2px}
+#pm .psub{color:var(--muted);font-size:16px}
+#pm .pr{border-bottom:1px solid var(--line);padding:14px 4px;cursor:pointer}
+#pm .pr.done{opacity:.35}
+#pm .pp{font:600 13px var(--f-ui);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+#pm .pt{font-size:26px;line-height:1.25;margin-top:2px}
+#pm .pn{display:inline-block;min-width:2.4em;margin-right:10px;padding:0 8px;border-radius:6px;background:var(--surface2);font-weight:700;text-align:center}
+#pm .pn:empty{display:none}
+#pm .po{font-size:20px;margin-top:4px}
+#pm .pl{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+#pm .pmb{display:inline-block;padding:12px 20px;border:2px solid var(--line);border-radius:8px;font-size:20px;font-weight:600;text-decoration:none;color:var(--ink);background:var(--surface)}
+#pm .pmb.org{border-color:#2b3a67;background:#2b3a67;color:#fff}
+
 #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10000}
 #login[hidden]{display:none}
 #login .box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:24px;max-width:420px;width:100%}
@@ -181,7 +199,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 40</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 41</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍 Suche</button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -684,6 +702,7 @@ function viewTermin(){
      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
        <button class="btn pri" id="pdf">PDF ${S.prev==='lieder'?'Liederplan':'Scholaplan'}</button>
        <button class="btn" id="copy">Text kopieren</button>
+       <button class="btn" id="play">▶ Spielmodus</button>
      </div>
      <p class="hint" style="margin-top:8px">Der Liederplan enthält nie YouTube-Links und ist zum Weitergeben gedacht.</p>
     </div><div id="abg"></div></div></div>`;
@@ -852,6 +871,7 @@ function bindTermin(){
   const nv=$('#nver'); if(nv) nv.onchange=e=>{S.nver=e.target.checked;LS.set('sp.nver',S.nver);pv()};
   $('#copy').onclick=async()=>{const tx=planText(ev,t);try{await navigator.clipboard.writeText(tx);toast('Liederplan kopiert')}catch(e){const ta=document.createElement('textarea');ta.value=tx;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Liederplan kopiert')}catch(_){toast('Kopieren nicht möglich')}ta.remove()}};
   $('#pdf').onclick=()=>makePdf(ev,t,S.prev==='schola'&&canSchola());
+  $('#play').onclick=()=>playOpen(ev.key);
 }
 
 /* --- Abgleich Vorschlag / tatsächlicher Plan --- */
@@ -1642,6 +1662,40 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){gsClose();return}
   const t=e.target,ed=t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName)||t&&t.isContentEditable;
   if((e.key==='/'&&!ed&&!e.ctrlKey&&!e.metaKey)||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k')){e.preventDefault();gsOpen()}});
+
+/* ---------- Spielmodus für den Organisten: grosse Ansicht, Orgelnoten-Links, Vor/Zurück, Bildschirm bleibt an ---------- */
+let _wl=null;
+async function playWake(on){try{if(on){if(navigator.wakeLock&&!_wl){_wl=await navigator.wakeLock.request('screen');_wl.addEventListener('release',()=>{_wl=null})}}else if(_wl){await _wl.release();_wl=null}}catch(e){}}
+function playClose(){const el=$('#pm');if(el)el.remove();playWake(false);document.body.style.overflow=''}
+function playOpen(key){
+  const ev=evByKey[key];if(!ev)return;
+  const t=getTermin(ev),reg=REG();
+  const rows=t.rows.filter(r=>r.t||r.n||r.k==='O');
+  const i=EV.indexOf(ev),prev=EV[i-1],next=EV[i+1];
+  let el=$('#pm');if(!el){el=document.createElement('div');el.id='pm';document.body.appendChild(el)}
+  const rh=rows.map((r,n)=>{
+    const c=isChant(r)?lookupChant(r,reg):null;
+    const lk=[];
+    if(c&&c.on)lk.push(lnkHtml(lnkStr(linksFor(c.on,r.p)),'Orgel').replace(/class="l1"/g,'class="pmb org"'));
+    if(c&&c.cn)lk.push(lnkHtml(lnkStr(linksFor(c.cn,r.p)),'Choral').replace(/class="l1"/g,'class="pmb"'));
+    return `<div class="pr" data-n="${n}"><div class="pp">${esc(r.p)}</div><div class="pt"><span class="pn">${esc(rowNr(r))}</span>${esc(rowTitle(r))}</div>${r.o?`<div class="po">Orgel: ${esc(r.o)}</div>`:''}${lk.length?`<div class="pl">${lk.join('')}</div>`:''}</div>`}).join('');
+  el.innerHTML=`<div class="ph"><button class="btn" id="pmx">✕ Schliessen</button><div class="pnav"><button class="btn" id="pmp" ${prev?'':'disabled'} title="${prev?esc(prev.n):''}">←</button><button class="btn" id="pmn" ${next?'':'disabled'} title="${next?esc(next.n):''}">→</button></div></div>
+   <h2>${esc(ev.n)}</h2><div class="psub">${wdOf(ev.d)}, ${fmtD(ev.d)}${t.sch&&t.sch!=='keine'?' · Schola: '+esc(t.sch):''}</div>
+   ${rows.length?rh:'<p class="psub">Noch keine Zeilen.</p>'}
+   <p class="psub" style="margin-top:18px">Zeile antippen = abhaken.${_wl?' Bildschirm bleibt an.':''}</p>`;
+  el.onclick=e=>{
+    if(e.target.closest('#pmx')){playClose();return}
+    if(e.target.closest('#pmp')&&prev){playOpen(prev.key);return}
+    if(e.target.closest('#pmn')&&next){playOpen(next.key);return}
+    if(e.target.closest('a'))return;
+    const r=e.target.closest('.pr');if(r)r.classList.toggle('done')};
+  el.scrollTop=0;document.body.style.overflow='hidden';playWake(true);
+}
+document.addEventListener('keydown',e=>{const el=$('#pm');if(!el)return;
+  if(e.key==='Escape')playClose();
+  else if(e.key==='ArrowRight'){const b=$('#pmn');if(b&&!b.disabled)b.click()}
+  else if(e.key==='ArrowLeft'){const b=$('#pmp');if(b&&!b.disabled)b.click()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&$('#pm'))playWake(true)});
 
 /* --- Start --- */
 document.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){S.tab=b.dataset.tab;render();scrollTo(0,0)}});
