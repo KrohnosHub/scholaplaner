@@ -108,9 +108,12 @@ function buildCat(){
   REG().filter(r=>!r.hide).forEach(r=>{
     const sr=/^SR\s*(\d+)/.exec(r.nr||'');
     if(/^Ordinarium/.test(r.art)&&sr){const v='SR '+sr[1]+' · '+r.name;if(!L.has(v))L.set(v,{b:'SR',n:sr[1],t:r.name,lab:r.art.split('/')[0].trim()})}
-    if(!G.has(r.name))G.set(r.name,{t:r.name,lab:String(r.art||'').split('(')[0].trim()+(r.nr?' · '+r.nr:'')})});
+    if(!G.has(r.name)){const lk=parseLinks((r.cn||'')+' ; '+(r.on||'')+' ; '+(r.yt||'')).map(x=>x.l||'').join(' ');
+      G.set(r.name,{t:r.name,lab:String(r.art||'').split('(')[0].trim()+(r.nr?' · '+r.nr:'')+(r.po?' · '+r.po.split('|')[0].trim():'')+(r.fe&&r.fe.length?' · '+r.fe.slice(0,2).join(', ')+(r.fe.length>2?' …':''):''),
+        s:norm([r.name,r.orig,r.nr,r.po,(r.fe||[]).join(' '),lk].join(' ')),key:r.key})}});
   D.hym.forEach(h=>{const num=h[0]==='SR'&&/^\d+/.test(h[1]);const v=num?'SR '+h[1]+' · '+h[2]:h[2];
     if(!L.has(v))L.set(v,num?{b:'SR',n:h[1],t:h[2],lab:h[3]||''}:{b:'',n:'',t:h[2],lab:h[0]!==h[2]?h[0]:''})});
+  [G,L].forEach(m=>m.forEach((x,v)=>{if(!x.s)x.s=norm(v+' '+(x.lab||''))}));
   CAT={G,L};
 }
 const catOpts=k=>[...CAT[k]].map(([v,x])=>`<option value="${esc(v)}">${esc(x.lab||'')}</option>`).join('');
@@ -150,7 +153,7 @@ function drawRows(ev,t){
      <td class="c-book${mh}"><select data-f="b" ${d}>${['','SR','Adoremus','Heft','Blatt','Zettel','OM'].map(x=>`<option value="${x}" ${r.b===x?'selected':''}>${x||'–'}</option>`).join('')}</select></td>
      <td class="c-nr${mh}"><input type="text" data-f="n" value="${esc(r.n)}" ${d}></td>
      <td class="c-v${mh}"><input type="text" data-f="v" value="${esc(r.v)}" ${d}></td>
-     <td class="c-t"><input type="text" data-f="t" value="${esc(r.t)}" ${r.k==='O'?'':'list="cat'+(r.k==='G'?'G':'L')+'" placeholder="Katalog durchsuchen oder frei eintippen"'} ${d}></td>
+     <td class="c-t"><input type="text" data-f="t" value="${esc(r.t)}" ${r.k==='O'?'':'autocomplete="off" placeholder="Tippen zum Suchen im Katalog oder frei eintippen"'} ${d}></td>
      <td class="c-k"><select data-f="k" ${d}><option value="L" ${r.k==='L'?'selected':''}>Lied</option><option value="G" ${r.k==='G'?'selected':''}>Schola</option><option value="O" ${r.k==='O'?'selected':''}>Orgel/Stille</option></select></td>
      ${canOrgan()?`<td class="c-o${ho&&!sh?' mhid':''}"><input type="text" data-f="o" value="${esc(r.o)}" placeholder="Hinweis" ${d}></td>`:''}
      ${sh?'':`<td class="c-x">${ro?'':`<span class="act-full"><button class="btn sm" data-a="up" title="nach oben">↑</button> <button class="btn sm" data-a="dn" title="nach unten">↓</button> <button class="btn sm" data-a="del" title="Zeile löschen">✕</button></span><details class="rmenu"><summary class="btn sm" aria-label="Zeilenmenü">⋯</summary><div class="rmp">${canOrgan()&&ho?'<button class="btn sm" data-a="sho">+ Hinweis</button>':''}${hnr?'<button class="btn sm" data-a="shnr">+ Nr.</button>':''}<button class="btn sm" data-a="up" title="nach oben">↑</button><button class="btn sm" data-a="dn" title="nach unten">↓</button><button class="btn sm" data-a="del" title="Zeile löschen">✕</button></div></details>`}</td>`}</tr>`;
@@ -232,7 +235,7 @@ function bindTermin(){
   const commit=()=>{if(canEdit()){if(t.rows.length){t.vars=t.vars||{};t.vars[t.sch]={rows:JSON.parse(JSON.stringify(t.rows)),tpl:t.tpl||''}}setTermin(ev,t)}};
   window._rsI=null;drawSheet(ev,t);
   drawRows(ev,t); const pv=()=>{$('#prev').innerHTML=previewHTML(ev,t);$('#abg').innerHTML=abgCard(ev,t)}; pv();
-  window._rsCtx={commit,pv};
+  window._rsCtx={commit,pv,ev,t};
   const rvNow=()=>LS.get('sp.rv',innerWidth<=900?'list':'table');
   const rvApply=()=>{const tv=$('.tv');if(tv)tv.dataset.rv=rvNow();const b=$('#rvt');if(b)b.textContent=rvNow()==='list'?'Tabelle':'Liste'};
   rvApply();$('#rvt').onclick=()=>{LS.set('sp.rv',rvNow()==='list'?'table':'list');rvApply()};
