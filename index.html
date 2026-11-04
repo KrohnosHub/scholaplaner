@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 47 -->
+<!-- Build 48 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -249,7 +249,7 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 47</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 48</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍<span class="gsl"> Suche</span></button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -453,7 +453,7 @@ async function initDb(){
     try{await GD.token(true);await initDb.go()}catch(err){setSync(String(err&&err.message||err),true,true)}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&GD.cached()){pull().then(flush)}});
   setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
-  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis();autoBackup()};
+  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis();autoBackup();autoTrashCheck()};
   if(GD.cached()) initDb.go(); else setSync('Nicht angemeldet',true,true);
 }
 function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}
@@ -652,7 +652,15 @@ function statusOf(ev){return getTermin(ev).status}
 
 /* ---------- Register-Zugriff ---------- */
 const regKey=(a,nr,name)=>a+'|'+nr+'|'+name;
-const REG=()=>{
+/* Dateien im Papierkorb (ID-Liste, lokal gemerkt): Links darauf werden nie angezeigt */
+let DEAD=new Set(LS.get('sp.dead',[]));
+const isDriveRef=u=>/drive\.google\.com|docs\.google\.com/.test(u||'')||/^[\w-]{25,}$/.test(String(u||'').trim());
+const deadId=u=>{const id=isDriveRef(u)&&ntMid(u);return id&&DEAD.has(id)?id:null};
+function regStrip(l){if(!DEAD.size)return l;
+  return l.map(r=>{let x=r;['cn','on','yt'].forEach(f=>{const a=parseLinks(r[f]);if(a.some(y=>deadId(y.u))){if(x===r)x={...r};x[f]=lnkStr(a.filter(y=>!deadId(y.u)))}});
+    if(r.nt){const a=ntParse(r.nt);if(a.some(y=>deadId(y.u))){if(x===r)x={...r};x.nt=ntStr(a.filter(y=>!deadId(y.u)))}}return x})}
+const REG=()=>regStrip(REG0());
+const REG0=()=>{
   const base=D.chants.map(c=>({art:c[0],nr:c[1],name:c[2],use:c[3],cnt:c[4],last:c[5],hint:c[6],yt:c[7]||'',cn:c[8]||'',on:c[9]||'',fe0:c[10]||[],po0:c[11]!=null?c[11]:(c[3]||''),key:regKey(c[0],c[1],c[2]),base:true}));
   const cu=S.custom.map(c=>({art:c.art,nr:c.nr||'',name:c.name,use:'',cnt:'',last:'',hint:'',yt:'',fe0:[],po0:'',key:regKey(c.art,c.nr||'',c.name),base:false}));
   return base.concat(cu).map(r=>{const o=S.reg[r.key]||{};const x={...r,orig:r.name,onr:r.nr,hide:!!o.hide};
@@ -1735,6 +1743,7 @@ function viewDaten(){
    ${verlaufCard()}
    ${offlineCard()}
    ${kjCard()}
+   ${trashCard()}
    ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>
    <div class="card"><h2>Ordner-Dateien verlinken</h2><p class="small">Verlinkt PDFs aus dem Drive-Hauptordner, die noch bei keinem Gesang hinterlegt sind (ca. 40), und legt dafür fehlende Einträge an. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="lnksplit">Nachtragen</button><div class="small" id="lnkres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27'||e.gen).map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
@@ -1754,7 +1763,7 @@ function bindDaten(){
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
   const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{overlayState(JSON.parse(r.result));toast('Importiert');render()}catch(err){toast('Datei nicht lesbar')}};r.readAsText(f)};
-  bindVerlauf();bindOffline();bindKjCard();
+  bindVerlauf();bindOffline();bindKjCard();bindTrash();
 }
 
 function kjCard(){
@@ -1896,6 +1905,64 @@ function bindChk(){
     const n=applyFestChanges([],rem);toast(rem.length+' Tag'+(rem.length===1?'':'s')+' bei '+n+' Gesängen entfernt');render()};
 }
 
+/* ---------- Dateien im Papierkorb: Links entfernen ---------- */
+/* Alle Drive-Verweise im Register: id -> [{key,name,f}] (aus den Roh-Daten ohne DEAD-Filter) */
+function driveRefs(){
+  const m=new Map();
+  REG0().forEach(r=>{if(r.hide)return;['cn','on','yt','nt'].forEach(f=>{
+    const a=f==='nt'?ntParse(r.nt):parseLinks(r[f]);
+    a.forEach(x=>{if(!isDriveRef(x.u))return;const id=ntMid(x.u);if(!id)return;(m.get(id)||m.set(id,[]).get(id)).push({key:r.key,name:r.name,f})})})});
+  return m}
+/* Status je Datei: ok | trashed | gone (404) | unknown */
+async function driveStatus(ids,prog){
+  const out=new Map(),q=[...ids];let done=0,stop=null;
+  const work=async()=>{while(q.length&&!stop){const id=q.shift();
+    try{const j=await (await GD.fetch('https://www.googleapis.com/drive/v3/files/'+id+'?fields=id,trashed&supportsAllDrives=true',{},false)).json();out.set(id,j.trashed?'trashed':'ok')}
+    catch(e){const msg=String(e&&e.message||e);if(/abgelaufen|Nicht bei Google/.test(msg)){stop=e;break}out.set(id,/Drive-Fehler 404/.test(msg)?'gone':'unknown')}
+    done++;if(prog)prog(done,ids.length)}};
+  await Promise.all(Array.from({length:6},work));
+  if(stop)throw stop;return out}
+/* Links auf die genannten Dateien aus den Register-Einträgen entfernen (als Überschreibung, wird mit Drive synchronisiert) */
+function dropDriveLinks(bad){
+  let n=0;const keys=new Set();
+  REG0().forEach(r=>{let ch=false;const o={};
+    ['cn','on','yt'].forEach(f=>{const a=parseLinks(r[f]);const b=a.filter(x=>!(isDriveRef(x.u)&&bad.has(ntMid(x.u))));if(b.length!==a.length){o[f]=lnkStr(b)||'-';ch=true;n+=a.length-b.length}});
+    if(r.nt){const a=ntParse(r.nt),b=a.filter(x=>!bad.has(ntMid(x.u)));if(b.length!==a.length){o.nt=ntStr(b)||'-';ch=true;n+=a.length-b.length}}
+    if(ch){S.reg[r.key]=Object.assign(S.reg[r.key]||{},o);keys.add(r.key)}});
+  save();keys.forEach(k=>regPut(k));
+  bad.forEach(id=>DEAD.add(id));LS.set('sp.dead',[...DEAD]);
+  for(const a in AUTO)delete AUTO[a];
+  return {n,e:keys.size}}
+/* Wieder aufgetauchte Dateien (aus dem Papierkorb zurückgeholt) aus DEAD nehmen */
+function reviveDead(st){let ch=false;st.forEach((v,id)=>{if(v==='ok'&&DEAD.has(id)){DEAD.delete(id);ch=true}});if(ch)LS.set('sp.dead',[...DEAD])}
+async function autoTrashCheck(){
+  try{if(READONLY||!GD.cached())return;
+    if(Date.now()-LS.get('sp.trk',0)<864e5)return;
+    const refs=driveRefs(),st=await driveStatus([...refs.keys()]);
+    LS.set('sp.trk',Date.now());reviveDead(st);
+    const bad=new Set([...st].filter(([,v])=>v==='trashed').map(([id])=>id));
+    if(bad.size){const r=dropDriveLinks(bad);toast(r.n+' Link'+(r.n===1?'':'s')+' auf Dateien im Papierkorb entfernt ('+r.e+' Einträge)');render()}}
+  catch(e){console.warn('autoTrashCheck',e)}}
+function trashCard(){
+  return `<div class="card"><h2>Dateien im Papierkorb</h2><p class="small">Prüft alle verknüpften Drive-Dateien (Choral, Orgel, YouTube-Links ausgenommen, Notator). Links auf Dateien im Papierkorb werden entfernt, automatisch höchstens einmal täglich beim Öffnen. Nicht mehr auffindbare Dateien (endgültig gelöscht oder ohne Zugriff) werden nur gemeldet.</p>
+  <button class="btn pri" id="trchk">Jetzt prüfen</button><div class="small" id="trres" style="margin-top:8px"></div></div>`}
+function bindTrash(){
+  const b=$('#trchk');if(!b)return;
+  b.onclick=async()=>{const r=$('#trres');b.disabled=true;
+    try{if(!GD.cached())throw new Error('Nicht bei Google angemeldet');
+      const refs=driveRefs(),ids=[...refs.keys()];
+      const st=await driveStatus(ids,(d,n)=>{r.textContent='Prüfe '+d+'/'+n+' …'});
+      LS.set('sp.trk',Date.now());reviveDead(st);
+      const tr=ids.filter(i=>st.get(i)==='trashed'),gone=ids.filter(i=>st.get(i)==='gone'),unk=ids.filter(i=>st.get(i)==='unknown');
+      const list=a=>a.length?'<ul class="chkl">'+a.slice(0,40).map(id=>'<li>'+[...new Set(refs.get(id).map(x=>esc(x.name)))].join(', ')+' <span class="muted">('+[...new Set(refs.get(id).map(x=>x.f))].join('/')+')</span></li>').join('')+(a.length>40?'<li>… '+(a.length-40)+' weitere</li>':'')+'</ul>':'';
+      r.innerHTML=`${ids.length} Dateien geprüft: <b>${ids.length-tr.length-gone.length-unk.length}</b> in Ordnung, <b>${tr.length}</b> im Papierkorb, <b>${gone.length}</b> nicht auffindbar${unk.length?', '+unk.length+' nicht prüfbar':''}.`
+        +(tr.length?`<p style="margin:8px 0 2px"><b>Im Papierkorb:</b></p>${list(tr)}${canEdit()?'<button class="btn" id="trdrop">Links entfernen</button>':''}`:'')
+        +(gone.length?`<p style="margin:8px 0 2px"><b>Nicht auffindbar:</b></p>${list(gone)}${canEdit()?'<button class="btn" id="trdrop2">Auch diese Links entfernen</button>':''}`:'');
+      const go=(set)=>{const x=dropDriveLinks(new Set(set));toast(x.n+' Link'+(x.n===1?'':'s')+' entfernt ('+x.e+' Einträge)');render()};
+      const d1=$('#trdrop');if(d1)d1.onclick=()=>go(tr);
+      const d2=$('#trdrop2');if(d2)d2.onclick=()=>go(tr.concat(gone));
+    }catch(e){r.innerHTML='<b style="color:#a8322d">Fehler: '+esc(e&&e.message||e)+'</b>'}
+    b.disabled=false}}
 /* ---------- Globale Suche: Termine, Gesänge, Liederbuch, Pläne (Titel und Plan-Zeilen) ---------- */
 function gsSearch(qs){
   const q=norm(qs.trim());if(q.length<2)return [];

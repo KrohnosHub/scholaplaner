@@ -1,6 +1,14 @@
 /* ---------- Register-Zugriff ---------- */
 const regKey=(a,nr,name)=>a+'|'+nr+'|'+name;
-const REG=()=>{
+/* Dateien im Papierkorb (ID-Liste, lokal gemerkt): Links darauf werden nie angezeigt */
+let DEAD=new Set(LS.get('sp.dead',[]));
+const isDriveRef=u=>/drive\.google\.com|docs\.google\.com/.test(u||'')||/^[\w-]{25,}$/.test(String(u||'').trim());
+const deadId=u=>{const id=isDriveRef(u)&&ntMid(u);return id&&DEAD.has(id)?id:null};
+function regStrip(l){if(!DEAD.size)return l;
+  return l.map(r=>{let x=r;['cn','on','yt'].forEach(f=>{const a=parseLinks(r[f]);if(a.some(y=>deadId(y.u))){if(x===r)x={...r};x[f]=lnkStr(a.filter(y=>!deadId(y.u)))}});
+    if(r.nt){const a=ntParse(r.nt);if(a.some(y=>deadId(y.u))){if(x===r)x={...r};x.nt=ntStr(a.filter(y=>!deadId(y.u)))}}return x})}
+const REG=()=>regStrip(REG0());
+const REG0=()=>{
   const base=D.chants.map(c=>({art:c[0],nr:c[1],name:c[2],use:c[3],cnt:c[4],last:c[5],hint:c[6],yt:c[7]||'',cn:c[8]||'',on:c[9]||'',fe0:c[10]||[],po0:c[11]!=null?c[11]:(c[3]||''),key:regKey(c[0],c[1],c[2]),base:true}));
   const cu=S.custom.map(c=>({art:c.art,nr:c.nr||'',name:c.name,use:'',cnt:'',last:'',hint:'',yt:'',fe0:[],po0:'',key:regKey(c.art,c.nr||'',c.name),base:false}));
   return base.concat(cu).map(r=>{const o=S.reg[r.key]||{};const x={...r,orig:r.name,onr:r.nr,hide:!!o.hide};
