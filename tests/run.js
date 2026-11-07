@@ -92,5 +92,12 @@ test('Änderungsverlauf: Änderungen am selben Eintrag werden zusammengefasst',(
   run(ctx,`localStorage.setItem('sp.hist','[]');S.reg={k2:{cn:'a'}};shadowAll();S.reg.k2={cn:'b'};dbPut('register','k2');S.reg.k2={cn:'c'};dbPut('register','k2');`);
   const h=JSON.parse(run(ctx,`localStorage.getItem('sp.hist')`));assert.equal(h.length,1);assert.equal(JSON.parse(h[0].b).cn,'a')});
 
+test('Choral-Nr ↔ Titel (Schola-Zeilen)',()=>{
+  run(ctx,`S.custom=[{art:'Ordinarium (Antiphon)',name:'Salve Regina 1 (solemnis)',nr:'SR 480'},{art:'Ordinarium (Antiphon)',name:'Salve Regina 2',nr:'SR 481'},{art:'Choral',name:'Ohne Nr',nr:''}];S.reg={};buildCat()`);
+  assert.equal(run(ctx,"JSON.stringify(chantForNr('481'))"),'["Salve Regina 2"]');
+  assert.equal(run(ctx,"JSON.stringify(chantForNr(' 480 '))"),'["Salve Regina 1 (solemnis)"]');
+  assert.equal(run(ctx,"chantForNr('229').length"),0);
+  assert.equal(run(ctx,"CAT.G.get('Salve Regina 2').n"),'481');
+  assert.equal(run(ctx,"CAT.G.get('Ohne Nr').n"),'')});
 console.log(`\n${ok} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail?1:0);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 48 -->
+<!-- Build 49 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -249,7 +249,7 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 48</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 49</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍<span class="gsl"> Suche</span></button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -880,6 +880,8 @@ function viewTermin(){
 }
 /* Nummer -> Titel aus dem Liederverzeichnis (Katalog); mehrere Treffer = mehrdeutig */
 function titleForNr(b,n){const hit=[];for(const x of (CAT.L||new Map()).values())if(String(x.n)===String(n)&&(x.b||'SR')===(b||'SR')&&x.t&&!hit.includes(x.t))hit.push(x.t);return hit}
+/* Nummer -> Choral-Titel aus dem Register (Schola-Zeilen, SR 410–500) */
+function chantForNr(n){const hit=[];REG().forEach(r=>{if(r.hide)return;const m=/^SR\s*(\d+)\b/.exec(r.nr||'');if(m&&m[1]===String(n).trim()&&!hit.includes(r.name))hit.push(r.name)});return hit}
 /* Katalog-Auswahl für die Titel-Spalte: Vorschläge aus Register/Liederbuch, Freitext bleibt möglich */
 let CAT={G:new Map(),L:new Map()};
 function buildCat(){
@@ -889,7 +891,7 @@ function buildCat(){
     if(/^Ordinarium/.test(r.art)&&sr){const v='SR '+sr[1]+' · '+r.name;if(!L.has(v))L.set(v,{b:'SR',n:sr[1],t:r.name,lab:r.art.split('/')[0].trim()})}
     if(!G.has(r.name)){const lk=parseLinks((r.cn||'')+' ; '+(r.on||'')+' ; '+(r.yt||'')).map(x=>x.l||'').join(' ');
       G.set(r.name,{t:r.name,lab:String(r.art||'').split('(')[0].trim()+(r.nr?' · '+r.nr:'')+(r.po?' · '+r.po.split('|')[0].trim():'')+(r.fe&&r.fe.length?' · '+r.fe.slice(0,2).join(', ')+(r.fe.length>2?' …':''):''),
-        s:norm([r.name,r.orig,r.nr,r.po,(r.fe||[]).join(' '),lk].join(' ')),key:r.key})}});
+        s:norm([r.name,r.orig,r.nr,r.po,(r.fe||[]).join(' '),lk].join(' ')),key:r.key,n:sr?sr[1]:''})}});
   D.hym.forEach(h=>{const num=h[0]==='SR'&&/^\d+/.test(h[1]);const v=num?'SR '+h[1]+' · '+h[2]:h[2];
     if(!L.has(v))L.set(v,num?{b:'SR',n:h[1],t:h[2],lab:h[3]||''}:{b:'',n:'',t:h[2],lab:h[0]!==h[2]?h[0]:''})});
   [G,L].forEach(m=>m.forEach((x,v)=>{if(!x.s)x.s=norm(v+' '+(x.lab||''))}));
@@ -1053,9 +1055,10 @@ function bindTermin(){
     if($('#addg'))$('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();if(rvNow()==='list'){window._rsI=t.rows.length-1;drawSheet(ev,t,true)}};
     $('#edb').oninput=e=>{const tr=e.target.closest('tr');if(!tr||!e.target.dataset.f)return;const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();pv()};
     $('#edb').onchange=e=>{if(e.target.dataset.f==='n'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const n=String(r.n||'').trim();
-        if(n&&r.k!=='G'){const c=titleForNr(r.b,n);if(c.length===1){if(r.t!==c[0]){r.t=c[0];r.v=r.v||'';commit();drawRows(ev,t);pv();toast('Titel aus Liederverzeichnis: '+c[0])}}else if(c.length>1)toast('Nr. '+n+' ist mehrdeutig – Titel bitte wählen')}
+        if(n&&r.k==='G'){if(!r.b||r.b==='SR'){const c=chantForNr(n);if(c.length===1){if(r.t!==c[0]){r.t=c[0];commit();drawRows(ev,t);pv();toast('Titel aus Choral-Register: '+c[0])}}else if(c.length>1)toast('Nr. '+n+' ist mehrdeutig – Titel bitte wählen')}}
+        else if(n&&r.k!=='G'){const c=titleForNr(r.b,n);if(c.length===1){if(r.t!==c[0]){r.t=c[0];r.v=r.v||'';commit();drawRows(ev,t);pv();toast('Titel aus Liederverzeichnis: '+c[0])}}else if(c.length>1)toast('Nr. '+n+' ist mehrdeutig – Titel bitte wählen')}
         return}
-      if(e.target.dataset.f==='t'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const x=(CAT[r.k]||new Map()).get(e.target.value);if(x){r.t=x.t;if(r.k!=='G'){r.b=x.b;r.n=x.n;r.v=''}commit();drawRows(ev,t);pv()}return}if(e.target.dataset.f==='k'||e.target.dataset.f==='b'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;commit();drawRows(ev,t);pv()}};
+      if(e.target.dataset.f==='t'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const x=(CAT[r.k]||new Map()).get(e.target.value);if(x){r.t=x.t;if(r.k!=='G'){r.b=x.b;r.n=x.n;r.v=''}else if(x.n){r.b='SR';r.n=x.n;r.v='';toast('Nr. SR '+x.n+' übernommen')}else if(r.n&&r.b==='SR'&&chantForNr(r.n).some(z=>z!==x.t)){r.n='';r.v=''}commit();drawRows(ev,t);pv()}return}if(e.target.dataset.f==='k'||e.target.dataset.f==='b'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;if(r.k==='G'&&(!r.b||r.b==='SR')&&String(r.n||'').trim()){const c=chantForNr(r.n);if(c.length===1)r.t=c[0]}commit();drawRows(ev,t);pv()}};
     $('#edb').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=+b.closest('tr').dataset.i;
       if(b.dataset.a==='sho'||b.dataset.a==='shnr'){const tr=b.closest('tr');tr.querySelectorAll(b.dataset.a==='sho'?'.c-o':'.c-book,.c-nr,.c-v').forEach(x=>x.classList.remove('mhid'));b.closest('details').open=false;const f=tr.querySelector(b.dataset.a==='sho'?'.c-o input':'.c-nr input');if(f)f.focus();return}
       if(b.dataset.a==='del')t.rows.splice(i,1);
