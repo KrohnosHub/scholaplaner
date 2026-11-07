@@ -99,5 +99,10 @@ test('Choral-Nr ↔ Titel (Schola-Zeilen)',()=>{
   assert.equal(run(ctx,"chantForNr('229').length"),0);
   assert.equal(run(ctx,"CAT.G.get('Salve Regina 2').n"),'481');
   assert.equal(run(ctx,"CAT.G.get('Ohne Nr').n"),'')});
+test('lookupChant: Schola-Zeile bevorzugt Titel vor veralteter Nr.',()=>{
+  run(ctx,`S.custom=[{art:'Lied',name:'Anderes Lied',nr:'SR 229'},{art:'Ordinarium',name:'Salve Regina 2',nr:'SR 481'}];S.reg={};`);
+  assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'229',t:'Salve Regina 2'},REG()).name"),'Salve Regina 2');
+  assert.equal(run(ctx,"lookupChant({k:'L',b:'SR',n:'229',t:'Salve Regina 2'},REG()).name"),'Anderes Lied');
+  assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'481',t:''},REG()).name"),'Salve Regina 2')});
 console.log(`\n${ok} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail?1:0);

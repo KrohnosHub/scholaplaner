@@ -20,10 +20,12 @@ function tblBind(root,st,fl,redraw,rehead){
 const isChant=r=>r.k==='G'||(r.b==='SR'&&/^\d+/.test(r.n||'')&&parseInt(r.n,10)>=410&&parseInt(r.n,10)<=500);
 function lookupChant(row,reg){
   const t=norm(row.t); if(!t&&!row.n) return null;
-  if(row.b==='SR'&&row.n){const x=reg.find(r=>!r.hide&&r.nr==='SR '+row.n)||reg.find(r=>r.nr==='SR '+row.n);if(x) return x}
-  if(!t) return null;
   const hit=(n)=>{const m=norm(n);return m&&(m===t||(t.length>=8&&m.startsWith(t.slice(0,Math.min(t.length,24))))||(m.length>=8&&t.startsWith(m.slice(0,24))))};
-  return reg.find(r=>!r.hide&&(hit(r.name)||hit(r.orig)))||reg.find(r=>hit(r.name)||hit(r.orig))||null;
+  const byTitle=()=>t?(reg.find(r=>!r.hide&&(hit(r.name)||hit(r.orig)))||reg.find(r=>hit(r.name)||hit(r.orig))||null):null;
+  /* Schola-Zeile: der Titel ist massgebend (eine alte Nr. aus einer früheren Lied-Zeile darf nicht auf ein anderes Stück zeigen) */
+  if(row.k==='G'){const x=byTitle();if(x)return x}
+  if(row.b==='SR'&&row.n){const x=reg.find(r=>!r.hide&&r.nr==='SR '+row.n)||reg.find(r=>r.nr==='SR '+row.n);if(x) return x}
+  return byTitle();
 }
 
 /* ---------- Plan-Text ---------- */
