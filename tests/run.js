@@ -104,5 +104,10 @@ test('lookupChant: Schola-Zeile bevorzugt Titel vor veralteter Nr.',()=>{
   assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'229',t:'Salve Regina 2'},REG()).name"),'Salve Regina 2');
   assert.equal(run(ctx,"lookupChant({k:'L',b:'SR',n:'229',t:'Salve Regina 2'},REG()).name"),'Anderes Lied');
   assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'481',t:''},REG()).name"),'Salve Regina 2')});
+test('lookupChant: «Ave Maria» (Offertorium) vs. «Ave María, grátia pléna» (SR 483)',()=>{
+  run(ctx,`S.custom=[{art:'Choral',name:'Ave Maria',nr:''},{art:'Choral',name:'Ave María, grátia pléna',nr:'SR 483'}];S.reg={};`);
+  assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'483',t:'Ave María, grátia pléna'},REG()).nr"),'SR 483');
+  assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'483',t:'Ave Maria gratia plena'},REG()).nr"),'SR 483');
+  assert.equal(run(ctx,"lookupChant({k:'G',b:'',n:'',t:'Ave Maria'},REG()).name"),'Ave Maria')});
 console.log(`\n${ok} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail?1:0);

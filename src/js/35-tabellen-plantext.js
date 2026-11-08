@@ -23,7 +23,13 @@ function lookupChant(row,reg){
   const hit=(n)=>{const m=norm(n);return m&&(m===t||(t.length>=8&&m.startsWith(t.slice(0,Math.min(t.length,24))))||(m.length>=8&&t.startsWith(m.slice(0,24))))};
   const byTitle=()=>t?(reg.find(r=>!r.hide&&(hit(r.name)||hit(r.orig)))||reg.find(r=>hit(r.name)||hit(r.orig))||null):null;
   /* Schola-Zeile: der Titel ist massgebend (eine alte Nr. aus einer früheren Lied-Zeile darf nicht auf ein anderes Stück zeigen) */
-  if(row.k==='G'){const x=byTitle();if(x)return x}
+  if(row.k==='G'){
+    /* 1. exakter Titel  2. Eintrag mit der eingetragenen SR-Nr., sofern der Titel dazu passt  3. Titel-Präfix (z.B. «Ave Maria» ⊂ «Ave Maria, gratia plena» darf nicht den kürzeren Eintrag nehmen, wenn die Nr. einen anderen bestimmt) */
+    const ex=t?(reg.find(r=>!r.hide&&(norm(r.name)===t||norm(r.orig)===t))||reg.find(r=>norm(r.name)===t||norm(r.orig)===t)):null;
+    if(ex) return ex;
+    if(row.b==='SR'&&row.n){const nx=reg.find(r=>!r.hide&&r.nr==='SR '+row.n)||reg.find(r=>r.nr==='SR '+row.n);if(nx&&(!t||hit(nx.name)||hit(nx.orig))) return nx}
+    const x=byTitle();if(x)return x
+  }
   if(row.b==='SR'&&row.n){const x=reg.find(r=>!r.hide&&r.nr==='SR '+row.n)||reg.find(r=>r.nr==='SR '+row.n);if(x) return x}
   return byTitle();
 }
