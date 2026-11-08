@@ -79,7 +79,7 @@ function viewTermin(){
    <div class="seg tsw" role="tablist" aria-label="Bereich">${[['ablauf','Ablauf'],['schola','Schola'+(ev.c?' ('+assignedTo(ev.c).length+')':'')],['vorschau','Vorschau']].map(([k,l])=>`<button data-tsub="${k}" aria-pressed="${(S.tsub||'ablauf')===k}">${l}</button>`).join('')}</div>
    <div class="card" data-sec="ablauf"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h3>Ablauf</h3><span><button class="btn sm" id="rvt" title="Ansicht wechseln">Tabelle</button> ${ro?'':`<button class="btn sm" id="addrow">+ Zeile</button> <button class="btn sm" id="addg">+ Schola-Gesang</button>`}</span></div>
     <div class="rlw" id="edl"></div><div class="rowsw"><table class="ed" id="ed"><thead><tr><th>Position</th><th>Buch</th><th>Nr.</th><th>Strophen</th><th>Titel / Incipit</th><th>Typ</th>${canOrgan()?'<th>Orgel</th>':''}<th></th></tr></thead><tbody id="edb"></tbody></table></div>
-    <p class="hint">Typ «Schola» = Choralgesang (erscheint im Liederplan nur als Titel, im Scholaplan mit Links). Buch SR = Salve Regina (Standard).</p>
+    <p class="hint">Typ «Schola» = Choralgesang (erscheint im Liederplan nur als Titel (mit Nr., falls eingetragen), im Scholaplan zusätzlich mit Links). Buch SR = Salve Regina (Standard).</p>
    </div><div id="regc" data-sec="schola"></div></div>
    <div data-sec="vorschau">
     <div class="card">

@@ -36,7 +36,6 @@ function lookupChant(row,reg){
 
 /* ---------- Plan-Text ---------- */
 function rowNr(r){
-  if(r.k==='G') return '';
   if(r.k==='O') return '';
   const bk=r.b&&r.b!=='SR'?r.b+' ':'';
   return (bk+(r.n||'')+(r.v?', '+r.v:'')).trim();
