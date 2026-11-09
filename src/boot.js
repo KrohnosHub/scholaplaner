@@ -13,7 +13,7 @@ const GD=(()=>{
     fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+token}}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.user&&j.user.emailAddress){try{localStorage.setItem(HK,j.user.emailAddress)}catch(e){}}}).catch(()=>{})};
   const loadGis=()=>{if(window.google&&google.accounts&&google.accounts.oauth2)return Promise.resolve();if(gis)return gis;
     gis=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=res;s.onerror=()=>{gis=null;rej(new Error('Google-Anmeldung nicht erreichbar (offline?)'))};document.head.appendChild(s)});return gis};
-  function token(interactive){
+  function token(interactive,silent){
     const c=cached();if(c)return Promise.resolve(c);
     if(!interactive)return Promise.reject(new Error('Nicht bei Google angemeldet'));
     if(pending)return pending;
@@ -22,8 +22,8 @@ const GD=(()=>{
         const cfg={client_id:CID,scope:SCOPE,callback:()=>{}};if(hint.indexOf('@')>0)cfg.hint=hint;client=google.accounts.oauth2.initTokenClient(cfg)}
       client.callback=r=>{if(r.error){reject(new Error('Google-Anmeldung: '+r.error));return}store(r.access_token,r.expires_in);resolve(r.access_token)};
       client.error_callback=e=>reject(new Error('Google-Anmeldung abgebrochen'+(e&&e.type?' ('+e.type+')':'')));
-      client.requestAccessToken({prompt:''});
-      setTimeout(()=>reject(new Error('Google-Anmeldung: keine Antwort (Popup blockiert?)')),90000)}));
+      client.requestAccessToken({prompt:silent?'none':''});
+      setTimeout(()=>reject(new Error('Google-Anmeldung: keine Antwort (Popup blockiert?)')),silent?12000:90000)}));
     pending=p;const done=()=>{if(pending===p)pending=null};p.then(done,done);return p}
   async function api(url,opts,interactive){
     const t=await token(interactive);const o=Object.assign({},opts||{});o.headers=Object.assign({},o.headers||{},{Authorization:'Bearer '+t});
@@ -58,5 +58,5 @@ const GD=(()=>{
       const B=await GD.readJson(f.id);await idbSet('basis',B);await idbSet('basisMod',f.modifiedTime);startApp(B)}
     catch(e){msg.textContent=String(e&&e.message||e);btn.disabled=false}};
   btn.onclick=go;
-  if(GD.cached())go();
+  if(GD.cached())go();else GD.token(true,true).then(()=>go()).catch(()=>{});
 })();
