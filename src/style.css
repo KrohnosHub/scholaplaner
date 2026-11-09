@@ -64,6 +64,8 @@ tr.month td{background:var(--surface2);font:600 13px var(--f-head);color:var(--m
 .card+.card{margin-top:14px}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-block:10px}
 .fields label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.fields label{min-width:0}
+.fields select,.fields input{min-width:0;max-width:100%;width:100%;box-sizing:border-box;text-overflow:ellipsis}
 .fields label>*:not(span){text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px}
 .rowsw{overflow-x:auto}
 .ed td{padding:4px 4px;border-top:1px solid var(--line)}
@@ -131,7 +133,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
  h2{font-size:17px}h3{font-size:15px}
  select,input[type=text],input[type=date],input[type=search],textarea{padding:3px 6px;font-size:14px}
  .btn{padding:5px 9px;font-size:13px}
- .fields{gap:6px;margin-block:6px;grid-template-columns:1fr 1fr}.fields label{font-size:11px;gap:2px}.fields label[style*="grid-column"]{grid-column:1/-1}
+ .fields{gap:6px;margin-block:6px;grid-template-columns:1fr 1fr}.fields label.wide{grid-column:1/-1}.fields label{font-size:11px;gap:2px}.fields label[style*="grid-column"]{grid-column:1/-1}
  .tsw{display:flex;margin:10px 0 0;width:100%}.tsw button{flex:1;padding:7px 6px}
  .tv .grid2,.tv{gap:0}
  .tv[data-tsub="ablauf"] [data-sec]:not([data-sec="ablauf"]),.tv[data-tsub="schola"] [data-sec]:not([data-sec="schola"]),.tv[data-tsub="vorschau"] [data-sec]:not([data-sec="vorschau"]){display:none}

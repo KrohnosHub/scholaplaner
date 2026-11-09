@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 52 -->
+<!-- Build 53 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -77,6 +77,8 @@ tr.month td{background:var(--surface2);font:600 13px var(--f-head);color:var(--m
 .card+.card{margin-top:14px}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-block:10px}
 .fields label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.fields label{min-width:0}
+.fields select,.fields input{min-width:0;max-width:100%;width:100%;box-sizing:border-box;text-overflow:ellipsis}
 .fields label>*:not(span){text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px}
 .rowsw{overflow-x:auto}
 .ed td{padding:4px 4px;border-top:1px solid var(--line)}
@@ -144,7 +146,7 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
  h2{font-size:17px}h3{font-size:15px}
  select,input[type=text],input[type=date],input[type=search],textarea{padding:3px 6px;font-size:14px}
  .btn{padding:5px 9px;font-size:13px}
- .fields{gap:6px;margin-block:6px;grid-template-columns:1fr 1fr}.fields label{font-size:11px;gap:2px}.fields label[style*="grid-column"]{grid-column:1/-1}
+ .fields{gap:6px;margin-block:6px;grid-template-columns:1fr 1fr}.fields label.wide{grid-column:1/-1}.fields label{font-size:11px;gap:2px}.fields label[style*="grid-column"]{grid-column:1/-1}
  .tsw{display:flex;margin:10px 0 0;width:100%}.tsw button{flex:1;padding:7px 6px}
  .tv .grid2,.tv{gap:0}
  .tv[data-tsub="ablauf"] [data-sec]:not([data-sec="ablauf"]),.tv[data-tsub="schola"] [data-sec]:not([data-sec="schola"]),.tv[data-tsub="vorschau"] [data-sec]:not([data-sec="vorschau"]){display:none}
@@ -249,7 +251,7 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 52</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 53</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍<span class="gsl"> Suche</span></button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -856,7 +858,7 @@ function viewTermin(){
     <div class="fields">
       <label><span>Schola</span><select id="sch" ${dis}>${['Männer','Frauen','Männer + Frauen','keine'].map(x=>`<option value="${x}" ${t.sch===x?'selected':''}>${x}${(t.vars&&t.vars[x]&&t.vars[x].rows&&t.vars[x].rows.length)?' ● Version':''}</option>`).join('')}</select></label>
       <label><span>Status</span><select id="st" ${dis}>${['offen','Vorschlag','Entwurf','fertig'].map(x=>`<option ${t.status===x?'selected':''}>${x}</option>`).join('')}</select></label>
-      <label><span>Vorlage laden</span><select id="tpl" ${dis}>${tplOpts}</select></label>
+      <label class="wide"><span>Vorlage laden</span><select id="tpl" ${dis}>${tplOpts}</select></label>
     </div>
     ${ro?'':`<div class="fields"><label style="grid-column:1/-1"><span>Notiz zum Termin (intern)</span><input type="text" id="tnote" value="${esc(t.note)}"></label></div>`}
     </details>

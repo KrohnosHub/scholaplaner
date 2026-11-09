@@ -70,7 +70,7 @@ function viewTermin(){
     <div class="fields">
       <label><span>Schola</span><select id="sch" ${dis}>${['Männer','Frauen','Männer + Frauen','keine'].map(x=>`<option value="${x}" ${t.sch===x?'selected':''}>${x}${(t.vars&&t.vars[x]&&t.vars[x].rows&&t.vars[x].rows.length)?' ● Version':''}</option>`).join('')}</select></label>
       <label><span>Status</span><select id="st" ${dis}>${['offen','Vorschlag','Entwurf','fertig'].map(x=>`<option ${t.status===x?'selected':''}>${x}</option>`).join('')}</select></label>
-      <label><span>Vorlage laden</span><select id="tpl" ${dis}>${tplOpts}</select></label>
+      <label class="wide"><span>Vorlage laden</span><select id="tpl" ${dis}>${tplOpts}</select></label>
     </div>
     ${ro?'':`<div class="fields"><label style="grid-column:1/-1"><span>Notiz zum Termin (intern)</span><input type="text" id="tnote" value="${esc(t.note)}"></label></div>`}
     </details>
