@@ -44,7 +44,7 @@ const GD=(()=>{
     return (await r.json()).id}
   async function list(part){const u='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({q:"name contains '"+Q(part)+"' and '"+FOLDER+"' in parents and trashed=false",fields:'files(id,name,modifiedTime)',pageSize:'100',orderBy:'modifiedTime desc'});
     return (await (await api(u,{},false)).json()).files||[]}
-  return {cached,token,fetch:api,find,readJson,writeJson,list};
+  return {cached,token,fetch:api,find,readJson,writeJson,list,FOLDER};
 })();
 (async()=>{
   const ov=document.getElementById('login'),msg=document.getElementById('lmsg'),btn=document.getElementById('lbtn');

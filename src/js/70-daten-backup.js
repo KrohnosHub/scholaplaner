@@ -12,6 +12,7 @@ function viewDaten(){
    ${offlineCard()}
    ${kjCard()}
    ${trashCard()}
+   ${onboardCard()}
    ${canEdit()?`<div class="card"><h2>Sammel-PDFs aufteilen</h2><p class="small">Teilt die Sammel-PDFs (Allerheiligen, Weihnachten Tagesmesse, Gründonnerstag, Osternacht, Ostersonntag, 1. und 4. Advent, Reminiscere, 3. So. n. Epiphanie, Rosenkranzsonntag) in Einzel-PDFs pro Gesang, legt sie im selben Drive-Ordner ab und ergänzt die Choral-/Orgel-Links der Gesänge (fehlende Einträge werden angelegt). Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="ahsplit">Aufteilen &amp; verlinken</button><div class="small" id="ahres" style="margin-top:8px"></div></div>
    <div class="card"><h2>Ordner-Dateien verlinken</h2><p class="small">Verlinkt PDFs aus dem Drive-Hauptordner, die noch bei keinem Gesang hinterlegt sind (ca. 40), und legt dafür fehlende Einträge an. Mehrfaches Ausführen ist unschädlich.</p><button class="btn pri" id="lnksplit">Nachtragen</button><div class="small" id="lnkres" style="margin-top:8px"></div></div>`:''}
    <div class="card"><h2>Noch zu bestätigen</h2><div class="small">${unsure.filter(e=>e.kj==='2026/27'||e.gen).map(e=>`<p style="margin:6px 0"><b>${fmtD(e.d)} ${esc(e.n)}</b><br><span class="muted">${esc(e.note)}</span></p>`).join('')||'–'}</div></div>
@@ -31,7 +32,7 @@ function bindDaten(){
   $('#exp').onclick=async()=>{const data=JSON.stringify({v:1,termine:S.termine,reg:S.reg,custom:S.custom},null,1);
     try{dlText('schola-planer-aenderungen.json',data);toast('Exportiert')}catch(e){toast('Export nicht möglich')}};
   const impEl=$('#imp');if(impEl)impEl.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{overlayState(JSON.parse(r.result));toast('Importiert');render()}catch(err){toast('Datei nicht lesbar')}};r.readAsText(f)};
-  bindVerlauf();bindOffline();bindKjCard();bindTrash();
+  bindVerlauf();bindOffline();bindKjCard();bindTrash();bindOnboard();
 }
 
 function kjCard(){

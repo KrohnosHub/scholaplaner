@@ -14,5 +14,6 @@ const S={tab:'kj',kj:'2026/27',q:'',art:'',status:'',unsure:false,sel:null,role:
   month:String(new Date().getMonth()+1),prev:'schola',organ:LS.get('sp.organ',true),nver:LS.get('sp.nver',null),rq:'',rart:'',rfile:'',hq:'',hbook:'SR',hber:'',gst:{c:-1,d:1},gfl:[],lst:{c:-1,d:1},lfl:[],rhid:false,rdup:false,aq:'',aart:''};
 const save=()=>{LS.set('sp.termine',S.termine);LS.set('sp.reg',S.reg);LS.set('sp.custom',S.custom)};
 let READONLY=LS.get('sp.ro',false);
-const showNt=()=>S.nver===null?!READONLY:!!S.nver;
+let HASNT=LS.get('sp.hasnt',true); /* Zugriff auf den Notator-Ordner (Onboarding-Ebene «Notator») */
+const showNt=()=>S.nver===null?(HASNT&&!READONLY):!!S.nver;
 const canEdit=()=>!READONLY,canSchola=()=>true,canOrgan=()=>true;

@@ -86,7 +86,12 @@ async function flush(){
   flushing=false;
   if(dirty.size){clearTimeout(flushT);flushT=setTimeout(flush,4000)}
 }
+async function checkNtAccess(){
+  try{const r=await fetch('https://www.googleapis.com/drive/v3/files/'+GD.FOLDER+'?fields=id',{headers:{Authorization:'Bearer '+await GD.token(false)}});
+    if(r.status===404||r.status===403){if(HASNT){HASNT=false;LS.set('sp.hasnt',false);render()}}
+    else if(r.ok&&!HASNT){HASNT=true;LS.set('sp.hasnt',true);render()}}catch(e){}}
 async function checkRole(){
+  checkNtAccess();
   try{
     if(!ZID){const f=await GD.find(ZNAME);ZID=f&&f.id}
     if(!ZID) return;
