@@ -9,7 +9,7 @@ def sub(tag,val):
     s=s.replace(tag,val.replace('\\','\\\\') if False else val)
 sub('/*CSS*/',open('src/style.css').read())
 sub('<!--BODY-->',open('src/body.html').read())
-sub('/*BOOT*/',open('src/boot.js').read())
+sub('/*BOOT*/',open('src/gd-core.js').read()+open('src/boot.js').read())  # gd-core: gemeinsamer Drive-Kern mit Notator
 main=''.join(open(f).read() for f in sorted(glob.glob('src/js/*.js')))  # Reihenfolge = Dateinamen (00-, 10-, …)
 assert '</script' not in main.lower()
 sub('/*MAIN*/',main)
