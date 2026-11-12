@@ -109,5 +109,35 @@ test('lookupChant: «Ave Maria» (Offertorium) vs. «Ave María, grátia pléna�
   assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'483',t:'Ave María, grátia pléna'},REG()).nr"),'SR 483');
   assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'483',t:'Ave Maria gratia plena'},REG()).nr"),'SR 483');
   assert.equal(run(ctx,"lookupChant({k:'G',b:'',n:'',t:'Ave Maria'},REG()).name"),'Ave Maria')});
+console.log('Google-Drive-Kern (gd-core)');
+test('Syntax: gd-core.js + boot.js (wie im Build)',()=>{new vm.Script(fs.readFileSync(path.join(root,'src/gd-core.js'),'utf8')+fs.readFileSync(path.join(root,'src/boot.js'),'utf8'))});
+test('gd-core.js gleich wie Notator (shared/gd-core.js), falls ../notator vorhanden',()=>{
+  const src=process.env.GD_CORE_SRC||path.join(root,'..','notator','shared','gd-core.js');
+  if(!fs.existsSync(src)){console.log('    (übersprungen: '+src+' nicht vorhanden)');return}
+  assert.ok(fs.readFileSync(src,'utf8')===fs.readFileSync(path.join(root,'src/gd-core.js'),'utf8'),'src/gd-core.js ist veraltet – aus notator/shared/gd-core.js kopieren');
+});
+test('boot.js: GD-Schnittstelle unverändert (cached, token, fetch, find, readJson, writeJson, list, FOLDER)',()=>{
+  const store={};const c={console,Date,JSON,Promise,Object,String,Error,URLSearchParams,setTimeout:()=>0,
+    localStorage:{getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v)},removeItem:k=>{delete store[k]}},sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},
+    indexedDB:{open:()=>({})},document:{getElementById:()=>({hidden:true,textContent:'',onclick:null}),createElement:()=>({}),head:{appendChild(){}},body:{appendChild(){}}},fetch:()=>Promise.reject(new Error('offline'))};
+  c.window=c;vm.createContext(c);
+  vm.runInContext(fs.readFileSync(path.join(root,'src/gd-core.js'),'utf8')+fs.readFileSync(path.join(root,'src/boot.js'),'utf8').replace(/\(async\(\)=>\{[\s\S]*$/,'')+';this.__GD=GD',c);
+  const G=c.__GD;
+  for(const k of ['cached','token','fetch','find','readJson','writeJson','list'])assert.equal(typeof G[k],'function',k);
+  assert.equal(G.FOLDER,'144wHwMFQUFhNxcpun6CO9fXtewhFcLe3');
+  assert.equal(G.cached(),null);
+  store.notatorGdToken=JSON.stringify({token:'T',exp:Date.now()+3600000});
+  assert.equal(G.cached(),'T','gemeinsamer Token-Schlüssel mit Notator');
+});
+console.log('Sicherheit (CSP)');
+test('index.html: CSP vorhanden, Hashes passen zu den Inline-Skripten, keine Inline-Handler',()=>{
+  const crypto=require('crypto');const h=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  const m=h.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/);assert.ok(m,'CSP-Meta fehlt');
+  const inl=[...h.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]);
+  for(const x of inl){const hs="'sha256-"+crypto.createHash('sha256').update(x,'utf8').digest('base64')+"'";assert.ok(m[1].includes(hs),'Hash fehlt – python3 build.py ausführen')}
+  assert.ok(!/'unsafe-inline'[^;]*;/.test(m[1].match(/script-src[^;]*;/)[0]),'script-src darf kein unsafe-inline enthalten');
+  const src=fs.readdirSync(path.join(root,'src/js')).map(f=>fs.readFileSync(path.join(root,'src/js',f),'utf8')).join('')+fs.readFileSync(path.join(root,'src/body.html'),'utf8');
+  assert.deepEqual(src.match(/\son(click|change|input|submit|load|error|keydown|keyup|focus|blur|mouse\w+)=["']/g)||[],[],'Inline-Event-Handler werden von der CSP blockiert – addEventListener verwenden');
+});
 console.log(`\n${ok} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail?1:0);

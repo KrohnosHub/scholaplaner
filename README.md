@@ -12,4 +12,6 @@ Liederpläne und Scholaplanung als Web-App (GitHub Pages: https://krohnoshub.git
 `src/` enthält die Quellen (shell.html, style.css, body.html, boot.js und `js/*.js`; die Dateien in `src/js/` werden nach Dateinamen sortiert zu einem Skript zusammengesetzt, Nummer = Reihenfolge). `python3 build.py` erzeugt `index.html` und setzt die Cache-Version in `sw.js` (Nummer in `VERSION` erhöhen).
 Updates über Pull Requests (wie bei Notator).
 
+`src/gd-core.js` (Google-Anmeldung, Token, Drive-Fehler) ist eine **Kopie** von `shared/gd-core.js` aus dem Notator-Repo und wird nicht hier bearbeitet: dort ändern, Datei hierher kopieren, `python3 build.py`. `node tests/run.js` meldet eine veraltete Kopie, wenn `../notator` daneben liegt.
+
 Tests: `node tests/run.js` (ohne Abhängigkeiten; prüft Syntax, Kirchenjahr-Regeln inkl. Rückrechnung der Basisjahre aus `tests/events.json`, Register-Hilfsfunktionen, Sync-Zusammenführung und Änderungsverlauf). Vor jedem Push ausführen.

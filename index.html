@@ -2,8 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<!-- CSP: Inline-Skripte nur per Hash (build.py trägt sie ein); neue externe Hosts hier bewusst ergänzen -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com 'sha256-2sBUar20cEM22DAWzTvQn2RlPXgYiGAPTDL2IG0pu60=' 'sha256-bs6zNnzpdI6URwXRLq+sYs//3WTP7DAe0ZWnkryL1G4=' 'sha256-QoMl/ODRUCIcosF0+RcqJlCA2wvXgi/HQBKCTD3HNKU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 55 -->
+<!-- Build 57 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -251,7 +253,7 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 55</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 57</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍<span class="gsl"> Suche</span></button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -262,6 +264,97 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+/* gd-core v1 – gemeinsamer Google-Drive-Kern für Notator und Schola-Planer.
+   QUELLE: KrohnosHub/notator, shared/gd-core.js. Nur dort bearbeiten, dann:
+     Notator:      python3 tools/gd-core-sync.py        (schreibt den Block in index.html)
+     Schola-Planer: src/gd-core.js durch diese Datei ersetzen, python3 build.py
+   Beide Apps laufen auf krohnoshub.github.io und teilen Token und Konto-Hinweis
+   (gleiche Schlüssel im localStorage): eine Anmeldung gilt für beide.
+   Meldungstexte nicht ändern, ohne die Apps zu prüfen: dort wird auf
+   «abgelaufen», «Nicht bei Google» und «Drive-Fehler <Status>» geprüft. */
+function gdCoreCreate(o) {
+  const TK = o.tokenKey, HK = o.hintKey;
+  let client = null, clientId = '', gis = null, pending = null;
+  const read = () => {
+    for (const st of ['localStorage', 'sessionStorage']) {
+      try { const t = JSON.parse(window[st].getItem(TK) || 'null'); if (t && t.token) return t; } catch (e) {}
+    }
+    return null;
+  };
+  // Gültiger Token (noch mind. 1 Min.) oder null
+  const cached = () => { const t = read(); return t && t.exp > Date.now() + 60000 ? t.token : null; };
+  // Restlaufzeit in ms (-1: kein Token)
+  const expiresIn = () => { const t = read(); return t ? t.exp - Date.now() : -1; };
+  const hint = () => { try { return localStorage.getItem(HK) || ''; } catch (e) { return ''; } };
+  const clear = () => { for (const st of ['localStorage', 'sessionStorage']) { try { window[st].removeItem(TK); } catch (e) {} } };
+  function store(token, expiresInSec) {
+    const v = JSON.stringify({ token, exp: Date.now() + (expiresInSec || 3600) * 1000 });
+    try { localStorage.setItem(TK, v); } catch (e) { try { sessionStorage.setItem(TK, v); } catch (e2) {} }
+    // Konto merken: beim nächsten Mal ohne Kontoauswahl (und evtl. still) anmelden
+    try { localStorage.setItem(HK, localStorage.getItem(HK) || '1'); } catch (e) {}
+    fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j && j.user && j.user.emailAddress) { try { localStorage.setItem(HK, j.user.emailAddress); } catch (e) {} } })
+      .catch(() => {});
+  }
+  function loadGis() {
+    if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+    if (gis) return gis;
+    gis = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => { gis = null; reject(new Error('Google-Anmeldung nicht erreichbar (offline?)')); };
+      document.head.appendChild(s);
+    });
+    return gis;
+  }
+  // interactive: darf ein Google-Fenster öffnen (nur aus einer Nutzeraktion heraus).
+  // opts.silent: ohne Kontoauswahl/Rückfrage (prompt 'none', kurze Wartezeit).
+  // opts.force: gespeicherten Token nicht verwenden, sondern erneuern – der alte
+  //   bleibt bis zum Erfolg gespeichert (andere Tabs/Apps sehen nie «abgemeldet»).
+  function token(interactive, opts) {
+    opts = opts || {};
+    if (!opts.force) { const c = cached(); if (c) return Promise.resolve(c); }
+    if (!interactive) return Promise.reject(new Error('Nicht bei Google angemeldet'));
+    const cid = String(o.clientId() || '').trim();
+    if (!cid) return Promise.reject(new Error('Google Drive ist noch nicht eingerichtet (Client-ID fehlt)'));
+    if (pending) return pending; // laufende Anmeldung teilen
+    const p = loadGis().then(() => new Promise((resolve, reject) => {
+      if (!client || clientId !== cid) {
+        const cfg = { client_id: cid, scope: o.scope, callback: () => {} };
+        const h = hint(); if (h.indexOf('@') > 0) cfg.hint = h;
+        client = google.accounts.oauth2.initTokenClient(cfg); clientId = cid;
+      }
+      client.callback = r => {
+        if (r.error) { reject(new Error('Google-Anmeldung: ' + r.error)); return; }
+        store(r.access_token, r.expires_in); resolve(r.access_token);
+      };
+      client.error_callback = e => reject(new Error('Google-Anmeldung abgebrochen' + (e && e.type ? ' (' + e.type + ')' : '')));
+      client.requestAccessToken({ prompt: opts.silent ? 'none' : '' });
+      setTimeout(() => reject(new Error('Google-Anmeldung: keine Antwort (Popup blockiert?)')), opts.silent ? 12000 : 90000);
+    }));
+    pending = p;
+    const done = () => { if (pending === p) pending = null; };
+    p.then(done, done);
+    return p;
+  }
+  // fetch mit Token; 401 → Token löschen, sonst Fehler mit Status und Textanfang
+  function api(url, opts, interactive) {
+    return token(interactive).then(t => {
+      const op = Object.assign({}, opts || {});
+      op.headers = Object.assign({}, op.headers || {}, { Authorization: 'Bearer ' + t });
+      return fetch(url, op).then(r => {
+        if (r.status === 401) { clear(); throw new Error('Google-Anmeldung abgelaufen – bitte neu anmelden'); }
+        if (!r.ok) return r.text().then(tx => { throw new Error('Drive-Fehler ' + r.status + ': ' + tx.slice(0, 160)); });
+        return r;
+      });
+    });
+  }
+  // Nach geänderter Client-ID: Google-Client neu aufbauen
+  const reset = () => { client = null; clientId = ''; };
+  return { cached, expiresIn, hint, clear, store, loadGis, token, fetch: api, reset };
+}
 /* Start: Google-Anmeldung (gleiche Client-ID/Token wie Notator), Basisdaten aus Drive/Cache laden, dann die App starten */
 const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('scholaplaner',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 async function idbGet(k){try{const d=await idb();return await new Promise((res,rej)=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}catch(e){return undefined}}
@@ -270,31 +363,10 @@ const GD=(()=>{
   const CID='689606502893-na74rng5bet9477m4pkuvpmdvtcl7aug.apps.googleusercontent.com';
   const FOLDER='144wHwMFQUFhNxcpun6CO9fXtewhFcLe3', SCOPE='https://www.googleapis.com/auth/drive';
   const TK='notatorGdToken', HK='notatorGdHint';
-  let client=null,gis=null,pending=null;
-  const cached=()=>{for(const st of ['localStorage','sessionStorage']){try{const t=JSON.parse(window[st].getItem(TK)||'null');if(t&&t.token&&t.exp>Date.now()+60000)return t.token}catch(e){}}return null};
-  const clear=()=>{for(const st of ['localStorage','sessionStorage']){try{window[st].removeItem(TK)}catch(e){}}};
-  const store=(token,ex)=>{const v=JSON.stringify({token,exp:Date.now()+(ex||3600)*1000});try{localStorage.setItem(TK,v)}catch(e){try{sessionStorage.setItem(TK,v)}catch(e2){}}
-    fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+token}}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.user&&j.user.emailAddress){try{localStorage.setItem(HK,j.user.emailAddress)}catch(e){}}}).catch(()=>{})};
-  const loadGis=()=>{if(window.google&&google.accounts&&google.accounts.oauth2)return Promise.resolve();if(gis)return gis;
-    gis=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=res;s.onerror=()=>{gis=null;rej(new Error('Google-Anmeldung nicht erreichbar (offline?)'))};document.head.appendChild(s)});return gis};
-  function token(interactive,silent){
-    const c=cached();if(c)return Promise.resolve(c);
-    if(!interactive)return Promise.reject(new Error('Nicht bei Google angemeldet'));
-    if(pending)return pending;
-    const p=loadGis().then(()=>new Promise((resolve,reject)=>{
-      if(!client){let hint='';try{hint=localStorage.getItem(HK)||''}catch(e){}
-        const cfg={client_id:CID,scope:SCOPE,callback:()=>{}};if(hint.indexOf('@')>0)cfg.hint=hint;client=google.accounts.oauth2.initTokenClient(cfg)}
-      client.callback=r=>{if(r.error){reject(new Error('Google-Anmeldung: '+r.error));return}store(r.access_token,r.expires_in);resolve(r.access_token)};
-      client.error_callback=e=>reject(new Error('Google-Anmeldung abgebrochen'+(e&&e.type?' ('+e.type+')':'')));
-      client.requestAccessToken({prompt:silent?'none':''});
-      setTimeout(()=>reject(new Error('Google-Anmeldung: keine Antwort (Popup blockiert?)')),silent?12000:90000)}));
-    pending=p;const done=()=>{if(pending===p)pending=null};p.then(done,done);return p}
-  async function api(url,opts,interactive){
-    const t=await token(interactive);const o=Object.assign({},opts||{});o.headers=Object.assign({},o.headers||{},{Authorization:'Bearer '+t});
-    const r=await fetch(url,o);
-    if(r.status===401){clear();throw new Error('Google-Anmeldung abgelaufen – bitte neu anmelden')}
-    if(!r.ok){const tx=await r.text();throw new Error('Drive-Fehler '+r.status+': '+tx.slice(0,160))}
-    return r}
+  /* Anmeldung, Token und Fehlerbehandlung: gemeinsamer Kern mit Notator (src/gd-core.js, Quelle notator/shared/gd-core.js) */
+  const core=gdCoreCreate({clientId:()=>CID,scope:SCOPE,tokenKey:TK,hintKey:HK});
+  const cached=core.cached, api=core.fetch;
+  const token=(interactive,silent)=>core.token(interactive,{silent:!!silent});
   const Q=s=>s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   async function find(name){const u='https://www.googleapis.com/drive/v3/files?'+new URLSearchParams({q:"name='"+Q(name)+"' and '"+FOLDER+"' in parents and trashed=false",fields:'files(id,name,modifiedTime)',pageSize:'5',orderBy:'modifiedTime desc'});
     const j=await (await api(u,{},false)).json();return (j.files||[])[0]||null}
@@ -452,7 +524,7 @@ async function checkBasis(){
   try{const f=await GD.find(BNAME);if(!f)return;const mod=await idbGet('basisMod');
     if(mod&&f.modifiedTime===mod)return;
     const D2=await GD.readJson(f.id);await idbSet('basis',D2);await idbSet('basisMod',f.modifiedTime);
-    if(mod){const e=$('#toast');e.innerHTML='Neue Basisdaten geladen. <button class="btn sm" onclick="location.reload()">Neu laden</button>';e.hidden=false}
+    if(mod){const e=$('#toast');e.innerHTML='Neue Basisdaten geladen. <button class="btn sm" data-reload>Neu laden</button>';e.querySelector('[data-reload]').addEventListener('click',()=>location.reload());e.hidden=false}
   }catch(e){}
 }
 async function initDb(){
