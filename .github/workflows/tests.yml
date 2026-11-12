@@ -1,0 +1,31 @@
+# Bei jedem Push nach main und bei jedem Pull Request: Build aktuell? Tests grün? Build-Nummer höher als auf main?
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: index.html und sw.js aus src/ gebaut?
+        run: |
+          python3 build.py
+          git diff --exit-code index.html sw.js || { echo "::error::index.html/sw.js passen nicht zu src/ – python3 build.py ausführen und committen (nie index.html direkt bearbeiten)"; exit 1; }
+      - name: gd-core-Quelle aus dem Notator holen (für den Gleichheits-Test)
+        continue-on-error: true
+        run: curl -fsSL https://raw.githubusercontent.com/KrohnosHub/notator/main/shared/gd-core.js -o "$RUNNER_TEMP/gd-core.js" && echo "GD_CORE_SRC=$RUNNER_TEMP/gd-core.js" >> "$GITHUB_ENV"
+      - name: Tests
+        run: node tests/run.js
+      - name: Build-Nummer höher als auf dem Ziel-Branch? (nur bei Pull Requests)
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          python3 tools/check-version.py "origin/${{ github.base_ref }}"
