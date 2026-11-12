@@ -104,7 +104,7 @@ async function checkBasis(){
   try{const f=await GD.find(BNAME);if(!f)return;const mod=await idbGet('basisMod');
     if(mod&&f.modifiedTime===mod)return;
     const D2=await GD.readJson(f.id);await idbSet('basis',D2);await idbSet('basisMod',f.modifiedTime);
-    if(mod){const e=$('#toast');e.innerHTML='Neue Basisdaten geladen. <button class="btn sm" onclick="location.reload()">Neu laden</button>';e.hidden=false}
+    if(mod){const e=$('#toast');e.innerHTML='Neue Basisdaten geladen. <button class="btn sm" data-reload>Neu laden</button>';e.querySelector('[data-reload]').addEventListener('click',()=>location.reload());e.hidden=false}
   }catch(e){}
 }
 async function initDb(){
