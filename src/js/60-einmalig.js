@@ -240,13 +240,16 @@ async function linkFolderFiles(out){
 }
 
 
-/* Tippfehler «lntroitus» (kleines L statt grossem I – in der Schrift nicht zu unterscheiden, in Grossbuchstaben «LNTROITUS») in Positionen korrigieren */
+/* Korrekturen an gespeicherten Terminen: Tippfehler «lntroitus» (kleines L statt grossem I – in der Schrift nicht zu unterscheiden, in Grossbuchstaben «LNTROITUS») in Positionen korrigieren */
 function posFixes(){
   let n=0;
   for(const k in S.termine){
     const t=S.termine[k];let ch=false;
     const fx=rs=>(rs||[]).forEach(r=>{if(r&&/^lntroitus\b/.test(r.p||'')){r.p='I'+r.p.slice(1);ch=true}});
     fx(t.rows);Object.values(t.vars||{}).forEach(v=>fx(v&&v.rows));
+    // Offertorium/Communio nach Messordnung einordnen (stand z. B. hinter «Ite missa est»)
+    const o1=chantOrderFix(t.rows);if(o1!==t.rows){t.rows=o1;ch=true}
+    Object.values(t.vars||{}).forEach(v=>{if(v&&v.rows){const o2=chantOrderFix(v.rows);if(o2!==v.rows){v.rows=o2;ch=true}}});
     if(ch){const ev=EV.find(e=>e.key===k);if(ev){setTermin(ev,t);n++}}
   }
   return n;

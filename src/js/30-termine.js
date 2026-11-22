@@ -53,6 +53,7 @@ const chantPos=r=>String(r.po||'').split(/\s*[\/,]\s*/)[0]||'Communio';
 /* Reihenfolge nach Messordnung */
 const MESS=[/einzug/,/introit|int?roitus/,/kyrie/,/gloria/,/gradual|allelu|tractus|sequenz/,/credo/,/predigt/,/offert|opfer/,/sanctus/,/agnus/,/commun|kommun/,/dank/,/ite missa|schluss/,/auszug/];
 const messRank=p=>{p=String(p||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const i=MESS.findIndex(x=>x.test(p));return i<0?4.5:i};
+const messRankK=p=>{const i=messRank(p);return i===4.5?-1:i}; // -1: Position nicht in der Messordnung (z. B. Asperges)
 const byMess=(a,b)=>messRank(chantPos(a))-messRank(chantPos(b));
 const assignedTo=c=>c?REG().filter(r=>!r.hide&&r.fx&&r.fe.includes(c)).sort(byMess):[];
 const dropped=c=>c?REG().filter(r=>!r.hide&&r.fx&&r.fe0.includes(c)&&!r.fe.includes(c)):[];
@@ -61,8 +62,22 @@ function insertChant(rows,r){
   if(rows.some(x=>x.k==='G'&&(sameT(x.t,title)||sameT(x.t,r.orig)))) return 'vorhanden';
   const i=rows.findIndex(x=>x.k==='G'&&posClass(x.p)===cls&&!REG().some(y=>y.fx&&y.key!==r.key&&sameT(x.t,y.name)));
   if(i>=0){rows[i]={...rows[i],t:title,n:'',v:'',b:'',o:''};return 'ersetzt'}
-  let j=rows.findIndex(x=>/auszug|schluss|stille/i.test(x.p||'')); if(j<0) j=rows.length;
+  /* nach Messordnung einordnen (Offertorium nach Credo/Predigt, vor «Zur Opferung»), nicht ans Ende */
+  const rk=messRank(chantPos(r));
+  let j=rows.findIndex(x=>{const q=messRankK(x.p);return q>=0&&q>=rk});
+  if(j<0) j=rows.findIndex(x=>/auszug|schluss|stille/i.test(x.p||'')); if(j<0) j=rows.length;
   rows.splice(j,0,{p:chantPos(r),b:'',n:'',v:'',t:title,k:'G',o:''});return 'ergänzt'}
+/* Gesangszeilen (Introitus, Offertorium, Communio …), die hinter einer Zeile späterer Messordnung stehen, davor einordnen */
+function chantOrderFix(rows){
+  if(!Array.isArray(rows)) return rows;
+  let out=rows,ch=false;
+  rows.forEach(r=>{
+    if(!r||r.k!=='G'||!/^(off|com)$/.test(posClass(r.p))) return;
+    const i=out.indexOf(r),rk=messRankK(r.p); if(i<0||rk<0) return;
+    const j=out.findIndex(x=>{const q=x!==r?messRankK(x.p):-1;return q>rk||(q===rk&&x.k!=='G')}); // gleicher Rang: das Lied («Zur Opferung») folgt dem Gesang
+    if(j>=0&&j<i){out=out.filter(x=>x!==r);out.splice(j,0,r);ch=true}
+  });
+  return ch?out:rows}
 function applyReg(ev,rows){
   const info={add:[],del:[]}; if(!ev||!ev.c||ev.act) return {rows,info};
   rows=rows.slice();
