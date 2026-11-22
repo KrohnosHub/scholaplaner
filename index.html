@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <!-- CSP: Inline-Skripte nur per Hash (build.py trägt sie ein); neue externe Hosts hier bewusst ergänzen -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com 'sha256-2sBUar20cEM22DAWzTvQn2RlPXgYiGAPTDL2IG0pu60=' 'sha256-x7ZhT8nhllxWw4PpJdQOTg+ipnvO0svZ+1RFIz6Uuqk=' 'sha256-QoMl/ODRUCIcosF0+RcqJlCA2wvXgi/HQBKCTD3HNKU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com 'sha256-2sBUar20cEM22DAWzTvQn2RlPXgYiGAPTDL2IG0pu60=' 'sha256-DtNPoRmrQ4qpUOX/mVXvXTUilFruqRJTph2tDW8sr4E=' 'sha256-QoMl/ODRUCIcosF0+RcqJlCA2wvXgi/HQBKCTD3HNKU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 60 -->
+<!-- Build 61 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -253,7 +253,7 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 60</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 61</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍<span class="gsl"> Suche</span></button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -539,7 +539,7 @@ async function initDb(){
   initDb.auto=autoLogin;
   document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(GD.cached()){pull().then(flush)}else autoLogin()});
   setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
-  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis();autoBackup();autoTrashCheck()};
+  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});const pf=posFixes();if(pf||b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis();autoBackup();autoTrashCheck()};
   if(GD.cached()) initDb.go(); else{setSync('Nicht angemeldet',true,true);autoLogin()}
 }
 function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}
@@ -1845,6 +1845,18 @@ async function linkFolderFiles(out){
   say(linked+' Links ergänzt, '+made+' Einträge neu.'); toast(linked+' Links ergänzt'+(made?', '+made+' Einträge neu':''));
 }
 
+
+/* Tippfehler «lntroitus» (kleines L statt grossem I – in der Schrift nicht zu unterscheiden, in Grossbuchstaben «LNTROITUS») in Positionen korrigieren */
+function posFixes(){
+  let n=0;
+  for(const k in S.termine){
+    const t=S.termine[k];let ch=false;
+    const fx=rs=>(rs||[]).forEach(r=>{if(r&&/^lntroitus\b/.test(r.p||'')){r.p='I'+r.p.slice(1);ch=true}});
+    fx(t.rows);Object.values(t.vars||{}).forEach(v=>fx(v&&v.rows));
+    if(ch){const ev=EV.find(e=>e.key===k);if(ev){setTermin(ev,t);n++}}
+  }
+  return n;
+}
 /* --- Daten & Hilfe --- */
 function viewDaten(){
   const nT=Object.keys(S.termine).length;

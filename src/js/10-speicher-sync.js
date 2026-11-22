@@ -119,7 +119,7 @@ async function initDb(){
   initDb.auto=autoLogin;
   document.addEventListener('visibilitychange',()=>{if(document.hidden)return;if(GD.cached()){pull().then(flush)}else autoLogin()});
   setInterval(()=>{if(!document.hidden&&!busy()&&GD.cached())pull().then(flush)},120000);
-  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});if(b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis();autoBackup();autoTrashCheck()};
+  initDb.go=async()=>{setSync('verbinde …');await checkRole();await pull();if(!READONLY){try{const b0=JSON.stringify(S.reg)+S.custom.length;regFixes();folderLinks(()=>{});const pf=posFixes();if(pf||b0!==JSON.stringify(S.reg)+S.custom.length)render()}catch(e){console.warn('regFixes',e)}}await flush();checkBasis();autoBackup();autoTrashCheck()};
   if(GD.cached()) initDb.go(); else{setSync('Nicht angemeldet',true,true);autoLogin()}
 }
 function toast(t,undo){const e=$('#toast');e.textContent=t;if(undo){const b=document.createElement('button');b.className='btn sm';b.style.marginLeft='12px';b.textContent='Rückgängig';b.onclick=()=>{undo();e.hidden=true};e.appendChild(b)}e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,undo?9000:3200)}

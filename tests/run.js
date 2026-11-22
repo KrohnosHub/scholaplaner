@@ -156,5 +156,9 @@ test('Kirchenjahr-Liste: Monat zeigt alle Tage des Monats (1. Advent 29.11.2026)
   assert.ok(!nov.some(d=>d<'2026-11-01'||d>'2026-11-30'),'Tage ausserhalb November 2026');
   assert.ok(l('2025/26','12').every(d=>d.startsWith('2025-12')),'Dezember gehört zum Beginnjahr');
 });
+test('Positionen: «lntroitus» (kleines L) wird zu «Introitus»',()=>{
+  const r=run(ctx,`(()=>{const ev=EV[0];S.termine[ev.key]={sch:'Männer',tpl:'',rows:[{p:'lntroitus',b:'',n:'',v:'',t:'Ad te',k:'G',o:''},{p:'Kyrie',b:'',n:'',v:'',t:'',k:'L',o:''}],vars:{Männer:{rows:[{p:'lntroitus',b:'',n:'',v:'',t:'',k:'G',o:''}]}},note:'',status:''};const n=posFixes();const t=S.termine[ev.key];return JSON.stringify([n,t.rows[0].p,t.rows[1].p,t.vars.Männer.rows[0].p])})()`);
+  assert.equal(r,JSON.stringify([1,'Introitus','Kyrie','Introitus']));
+});
 console.log(`\n${ok} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail?1:0);
