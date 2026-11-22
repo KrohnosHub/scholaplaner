@@ -160,5 +160,13 @@ test('Positionen: «lntroitus» (kleines L) wird zu «Introitus»',()=>{
   const r=run(ctx,`(()=>{const ev=EV[0];S.termine[ev.key]={sch:'Männer',tpl:'',rows:[{p:'lntroitus',b:'',n:'',v:'',t:'Ad te',k:'G',o:''},{p:'Kyrie',b:'',n:'',v:'',t:'',k:'L',o:''}],vars:{Männer:{rows:[{p:'lntroitus',b:'',n:'',v:'',t:'',k:'G',o:''}]}},note:'',status:''};const n=posFixes();const t=S.termine[ev.key];return JSON.stringify([n,t.rows[0].p,t.rows[1].p,t.vars.Männer.rows[0].p])})()`);
   assert.equal(r,JSON.stringify([1,'Introitus','Kyrie','Introitus']));
 });
+test('Offertorium: nach Credo/Predigt, vor «Zur Opferung» (nicht hinter Ite missa est)',()=>{
+  const r=run(ctx,`(()=>{const R=(p,k)=>({p,b:'',n:'',v:'',t:p,k:k||'L',o:''});
+    const rows=[R('Einzug'),R('Introitus','G'),R('Kyrie'),R('Credo'),R('Zur Opferung'),R('Sanctus'),R('Agnus Dei'),R('Zur Kommunion','G'),R('Danklied'),R('Ite missa est'),R('Offertorium','G'),R('Auszug')];
+    return chantOrderFix(rows).map(x=>x.p).join('|')})()`);
+  assert.equal(r,'Einzug|Introitus|Kyrie|Credo|Offertorium|Zur Opferung|Sanctus|Agnus Dei|Zur Kommunion|Danklied|Ite missa est|Auszug');
+  const n=run(ctx,`(()=>{const rows=[{p:'Credo',k:'L',t:'Credo II'},{p:'Zur Opferung',k:'L',t:'Lied'},{p:'Sanctus',k:'L',t:'x'},{p:'Auszug',k:'L',t:'y'}];insertChant(rows,{po:'Offertorium',name:'Ad te Domine levavi',orig:'Ad te Domine levavi',key:'k'});return rows.map(x=>x.p).join('|')})()`);
+  assert.equal(n,'Credo|Offertorium|Zur Opferung|Sanctus|Auszug');
+});
 console.log(`\n${ok} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail?1:0);
