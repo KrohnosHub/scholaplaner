@@ -239,3 +239,15 @@ async function linkFolderFiles(out){
   say(linked+' Links ergänzt, '+made+' Einträge neu.'); toast(linked+' Links ergänzt'+(made?', '+made+' Einträge neu':''));
 }
 
+
+/* Tippfehler «lntroitus» (kleines L statt grossem I – in der Schrift nicht zu unterscheiden, in Grossbuchstaben «LNTROITUS») in Positionen korrigieren */
+function posFixes(){
+  let n=0;
+  for(const k in S.termine){
+    const t=S.termine[k];let ch=false;
+    const fx=rs=>(rs||[]).forEach(r=>{if(r&&/^lntroitus\b/.test(r.p||'')){r.p='I'+r.p.slice(1);ch=true}});
+    fx(t.rows);Object.values(t.vars||{}).forEach(v=>fx(v&&v.rows));
+    if(ch){const ev=EV.find(e=>e.key===k);if(ev){setTermin(ev,t);n++}}
+  }
+  return n;
+}
