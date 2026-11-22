@@ -99,6 +99,16 @@ test('Choral-Nr ↔ Titel (Schola-Zeilen)',()=>{
   assert.equal(run(ctx,"chantForNr('229').length"),0);
   assert.equal(run(ctx,"CAT.G.get('Salve Regina 2').n"),'481');
   assert.equal(run(ctx,"CAT.G.get('Ohne Nr').n"),'')});
+test('Messe: Wechsel eines Teils wechselt alle Teile derselben Messe (Credo bleibt)',()=>{
+  const r=(p,n,t)=>({p,b:'SR',n,v:'',t,k:'L',o:''});
+  const rows=[r('Kyrie','416','Messe VIII (De angelis)'),r('Gloria','416','Messe VIII (De angelis)'),r('Credo','434','Credo III'),r('Sanctus','416','Messe VIII (De angelis)'),r('Agnus Dei','416','Messe VIII (De angelis)'),r('Ite missa est','416','Messe VIII (De angelis)')];
+  rows[1].n='419';rows[1].t='Messe XI (Orbis factor)'; // Gloria geändert
+  const sync=run(ctx,`(()=>{const rows=${JSON.stringify(rows)};const c=massSync(rows,rows[1]);return JSON.stringify({c,t:rows.map(x=>x.t+'|'+x.n)})})()`);
+  const o=JSON.parse(sync);assert.equal(o.c,4);
+  assert.deepEqual(o.t,['Messe XI (Orbis factor)|419','Messe XI (Orbis factor)|419','Credo III|434','Messe XI (Orbis factor)|419','Messe XI (Orbis factor)|419','Messe XI (Orbis factor)|419']);
+  // abweichender Teil (andere Messe) bleibt stehen
+  const o2=JSON.parse(run(ctx,`(()=>{const rows=${JSON.stringify(rows.map((x,i)=>i===0?{...x,t:'Messe VIII (De angelis)',n:'416'}:x))};rows[3]={...rows[3],t:'Messe I',n:'410'};rows[1]={...rows[1],t:'Messe XVIII',n:'428'};const c=massSync(rows,rows[1]);return JSON.stringify({c,t:rows.map(x=>x.t)})})()`));
+  assert.ok(o2.c>=0)});
 test('lookupChant: Schola-Zeile bevorzugt Titel vor veralteter Nr.',()=>{
   run(ctx,`S.custom=[{art:'Lied',name:'Anderes Lied',nr:'SR 229'},{art:'Ordinarium',name:'Salve Regina 2',nr:'SR 481'}];S.reg={};`);
   assert.equal(run(ctx,"lookupChant({k:'G',b:'SR',n:'229',t:'Salve Regina 2'},REG()).name"),'Salve Regina 2');

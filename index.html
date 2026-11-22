@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <!-- CSP: Inline-Skripte nur per Hash (build.py trägt sie ein); neue externe Hosts hier bewusst ergänzen -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com 'sha256-2sBUar20cEM22DAWzTvQn2RlPXgYiGAPTDL2IG0pu60=' 'sha256-bs6zNnzpdI6URwXRLq+sYs//3WTP7DAe0ZWnkryL1G4=' 'sha256-QoMl/ODRUCIcosF0+RcqJlCA2wvXgi/HQBKCTD3HNKU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com 'sha256-2sBUar20cEM22DAWzTvQn2RlPXgYiGAPTDL2IG0pu60=' 'sha256-PtnRIAaCx8c+tb/oy3ZSXkJjc1nl0R/xa7MGNFZx/0k=' 'sha256-QoMl/ODRUCIcosF0+RcqJlCA2wvXgi/HQBKCTD3HNKU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 57 -->
+<!-- Build 58 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -253,7 +253,7 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 57</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 58</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍<span class="gsl"> Suche</span></button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -975,6 +975,19 @@ function viewTermin(){
 function titleForNr(b,n){const hit=[];for(const x of (CAT.L||new Map()).values())if(String(x.n)===String(n)&&(x.b||'SR')===(b||'SR')&&x.t&&!hit.includes(x.t))hit.push(x.t);return hit}
 /* Nummer -> Choral-Titel aus dem Register (Schola-Zeilen, SR 410–500) */
 function chantForNr(n){const hit=[];REG().forEach(r=>{if(r.hide)return;const m=/^SR\s*(\d+)\b/.exec(r.nr||'');if(m&&m[1]===String(n).trim()&&!hit.includes(r.name))hit.push(r.name)});return hit}
+/* Messe: Wird bei einem Messteil (Kyrie, Gloria, Sanctus, Agnus Dei, Ite) die Messe geändert (Titel/Nr./Buch), wechseln alle übrigen
+   Teile mit derselben bisherigen Messe mit. Credo bleibt unberührt; bewusst abweichende Teile (andere Messe) bleiben ebenfalls. */
+const isMassPart=r=>!!r&&r.k==='L'&&/^(Kyrie|Gloria|Sanctus|Agnus|Ite)\b/i.test(String(r.p||'').trim());
+function massSync(rows,r){
+  if(!isMassPart(r)) return 0;
+  const sig=x=>[x.b||'',String(x.n||'').trim(),x.t||''].join('|');
+  const others=rows.filter(x=>x!==r&&isMassPart(x)); if(!others.length) return 0;
+  const cnt={}; others.forEach(x=>{const k=sig(x);cnt[k]=(cnt[k]||0)+1});
+  const top=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]); if(top.length>1&&cnt[top[0]]===cnt[top[1]]) return 0; // unklar, welche Messe gemeint ist
+  if(sig(r)===top[0]) return 0;
+  const tgt=others.filter(x=>sig(x)===top[0]); tgt.forEach(x=>{x.b=r.b;x.n=r.n;x.t=r.t});
+  return tgt.length;
+}
 /* Katalog-Auswahl für die Titel-Spalte: Vorschläge aus Register/Liederbuch, Freitext bleibt möglich */
 let CAT={G:new Map(),L:new Map()};
 function buildCat(){
@@ -1147,7 +1160,7 @@ function bindTermin(){
     if($('#addrow'))$('#addrow').onclick=()=>{t.rows.push({p:'',b:'SR',n:'',v:'',t:'',k:'L',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();if(rvNow()==='list'){window._rsI=t.rows.length-1;drawSheet(ev,t,true)}};
     if($('#addg'))$('#addg').onclick=()=>{t.rows.push({p:'Communio',b:'',n:'',v:'',t:'',k:'G',o:''});if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();drawRows(ev,t);pv();if(rvNow()==='list'){window._rsI=t.rows.length-1;drawSheet(ev,t,true)}};
     $('#edb').oninput=e=>{const tr=e.target.closest('tr');if(!tr||!e.target.dataset.f)return;const r=t.rows[+tr.dataset.i];r[e.target.dataset.f]=e.target.value;if(t.status==='offen'||t.status==='Vorschlag')t.status='Entwurf';commit();pv()};
-    $('#edb').onchange=e=>{if(e.target.dataset.f==='n'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const n=String(r.n||'').trim();
+    const edbChange=e=>{if(e.target.dataset.f==='n'){const tr=e.target.closest('tr');const r=t.rows[+tr.dataset.i];const n=String(r.n||'').trim();
         if(n&&r.k==='G'){if(!r.b||r.b==='SR'){const c=chantForNr(n);if(c.length===1){if(r.t!==c[0]){r.t=c[0];commit();drawRows(ev,t);pv();toast('Titel aus Choral-Register: '+c[0])}}else if(c.length>1)toast('Nr. '+n+' ist mehrdeutig – Titel bitte wählen')}}
         else if(n&&r.k!=='G'){const c=titleForNr(r.b,n);if(c.length===1){if(r.t!==c[0]){r.t=c[0];r.v=r.v||'';commit();drawRows(ev,t);pv();toast('Titel aus Liederverzeichnis: '+c[0])}}else if(c.length>1)toast('Nr. '+n+' ist mehrdeutig – Titel bitte wählen')}
         return}
@@ -1158,6 +1171,9 @@ function bindTermin(){
       if(b.dataset.a==='up'&&i>0)[t.rows[i-1],t.rows[i]]=[t.rows[i],t.rows[i-1]];
       if(b.dataset.a==='dn'&&i<t.rows.length-1)[t.rows[i+1],t.rows[i]]=[t.rows[i],t.rows[i+1]];
       commit();drawRows(ev,t);pv()};
+    $('#edb').onchange=e=>{edbChange(e);const f=e.target.dataset&&e.target.dataset.f;
+      if(f==='t'||f==='n'||f==='b'){const tr=e.target.closest('tr');const r=tr&&t.rows[+tr.dataset.i];const c=r?massSync(t.rows,r):0;
+        if(c){commit();drawRows(ev,t);pv();toast('Messe «'+r.t+'» auch bei '+c+' weiteren Teil'+(c>1?'en':'')+' übernommen')}}};
     window._rsCtx.h={i:$('#edb').oninput,c:$('#edb').onchange};
   }
 
