@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <!-- CSP: Inline-Skripte nur per Hash (build.py trägt sie ein); neue externe Hosts hier bewusst ergänzen -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com 'sha256-2sBUar20cEM22DAWzTvQn2RlPXgYiGAPTDL2IG0pu60=' 'sha256-PtnRIAaCx8c+tb/oy3ZSXkJjc1nl0R/xa7MGNFZx/0k=' 'sha256-QoMl/ODRUCIcosF0+RcqJlCA2wvXgi/HQBKCTD3HNKU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com 'sha256-2sBUar20cEM22DAWzTvQn2RlPXgYiGAPTDL2IG0pu60=' 'sha256-x7ZhT8nhllxWw4PpJdQOTg+ipnvO0svZ+1RFIz6Uuqk=' 'sha256-QoMl/ODRUCIcosF0+RcqJlCA2wvXgi/HQBKCTD3HNKU='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- Build 59 -->
+<!-- Build 60 -->
 <title>Schola-Planer St. Pelagiberg</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -253,7 +253,7 @@ body[data-gv="cards"] #rcards+.tw{display:none}
 <div class="wrap">
 <header class="top">
   <div class="bar">
-    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 59</small></div>
+    <div class="brand">Schola-Planer<small><span class="bsub">St. Pelagiberg · Liederpläne &amp; Choral · </span>Build 60</small></div>
     <div style="display:flex;gap:10px;align-items:center"><button class="btn sm" id="gsb" title="Suche (Taste /)" aria-label="Suche">🔍<span class="gsl"> Suche</span></button><div class="sync" id="sync" title="Speicherort der Änderungen">…</div></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -887,8 +887,11 @@ function viewKJ(){
 }
 function filtered(){
   const q=norm(S.q);
-  return EV.filter(e=>e.kj===S.kj&&(!S.month||+e.d.slice(5,7)===+S.month)&&(!S.art||e.a===S.art)&&(!S.status||statusOf(e)===S.status)&&(!S.unsure||/UNSICHER|prüfen|bestätigen/i.test(e.note))
-    &&(!q||norm(e.n+' '+e.note+' '+fmtD(e.d)+' '+wdOf(e.d)).includes(q)));
+  /* Monat gewählt: alle Tage dieses Kalendermonats (auch aus dem Folge-Kirchenjahr, z. B. 1. Advent am 29.11.) –
+     im Jahr, das zum gewählten Kirchenjahr gehört (Kirchenjahr 2025/26: Dez. 2025 … Nov. 2026), nie Tage des Vorjahres */
+  const y0=parseInt(S.kj,10),cy=S.month&&y0?String(+S.month>=12?y0:y0+1):'';
+  return EV.filter(e=>(S.month&&cy?(e.d.slice(0,4)===cy&&+e.d.slice(5,7)===+S.month):e.kj===S.kj&&(!S.month||+e.d.slice(5,7)===+S.month))&&(!S.art||e.a===S.art)&&(!S.status||statusOf(e)===S.status)&&(!S.unsure||/UNSICHER|prüfen|bestätigen/i.test(e.note))
+    &&(!q||norm(e.n+' '+e.note+' '+fmtD(e.d)+' '+wdOf(e.d)).includes(q))).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
 }
 function drawList(){
   const l=filtered(); let last=''; const out=[];
