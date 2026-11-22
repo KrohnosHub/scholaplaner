@@ -149,5 +149,12 @@ test('index.html: CSP vorhanden, Hashes passen zu den Inline-Skripten, keine Inl
   const src=fs.readdirSync(path.join(root,'src/js')).map(f=>fs.readFileSync(path.join(root,'src/js',f),'utf8')).join('')+fs.readFileSync(path.join(root,'src/body.html'),'utf8');
   assert.deepEqual(src.match(/\son(click|change|input|submit|load|error|keydown|keyup|focus|blur|mouse\w+)=["']/g)||[],[],'Inline-Event-Handler werden von der CSP blockiert – addEventListener verwenden');
 });
+test('Kirchenjahr-Liste: Monat zeigt alle Tage des Monats (1. Advent 29.11.2026), keine Tage des Vorjahres',()=>{
+  const l=(kj,m)=>{ctx._kj=kj;ctx._m=m;return run(ctx,`(S.kj=_kj,S.month=_m,S.q='',S.art='',S.status='',S.unsure=false,filtered().map(e=>e.d))`)};
+  const nov=l('2025/26','11');
+  assert.ok(nov.includes('2026-11-29'),'1. Advent 29.11.2026 fehlt');
+  assert.ok(!nov.some(d=>d<'2026-11-01'||d>'2026-11-30'),'Tage ausserhalb November 2026');
+  assert.ok(l('2025/26','12').every(d=>d.startsWith('2025-12')),'Dezember gehört zum Beginnjahr');
+});
 console.log(`\n${ok} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail?1:0);

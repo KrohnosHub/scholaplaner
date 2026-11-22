@@ -15,8 +15,11 @@ function viewKJ(){
 }
 function filtered(){
   const q=norm(S.q);
-  return EV.filter(e=>e.kj===S.kj&&(!S.month||+e.d.slice(5,7)===+S.month)&&(!S.art||e.a===S.art)&&(!S.status||statusOf(e)===S.status)&&(!S.unsure||/UNSICHER|prüfen|bestätigen/i.test(e.note))
-    &&(!q||norm(e.n+' '+e.note+' '+fmtD(e.d)+' '+wdOf(e.d)).includes(q)));
+  /* Monat gewählt: alle Tage dieses Kalendermonats (auch aus dem Folge-Kirchenjahr, z. B. 1. Advent am 29.11.) –
+     im Jahr, das zum gewählten Kirchenjahr gehört (Kirchenjahr 2025/26: Dez. 2025 … Nov. 2026), nie Tage des Vorjahres */
+  const y0=parseInt(S.kj,10),cy=S.month&&y0?String(+S.month>=12?y0:y0+1):'';
+  return EV.filter(e=>(S.month&&cy?(e.d.slice(0,4)===cy&&+e.d.slice(5,7)===+S.month):e.kj===S.kj&&(!S.month||+e.d.slice(5,7)===+S.month))&&(!S.art||e.a===S.art)&&(!S.status||statusOf(e)===S.status)&&(!S.unsure||/UNSICHER|prüfen|bestätigen/i.test(e.note))
+    &&(!q||norm(e.n+' '+e.note+' '+fmtD(e.d)+' '+wdOf(e.d)).includes(q))).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
 }
 function drawList(){
   const l=filtered(); let last=''; const out=[];
