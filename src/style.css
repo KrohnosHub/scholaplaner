@@ -119,7 +119,11 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
 .rmenu{display:none;position:relative;text-align:left}
 .rmenu>summary{list-style:none;cursor:pointer;display:inline-block}.rmenu>summary::-webkit-details-marker{display:none}
 .rmp .btn{white-space:nowrap}.rmp{position:absolute;right:0;top:calc(100% + 3px);z-index:30;background:var(--surface);border:1px solid #8886;border-radius:8px;padding:6px;display:flex;gap:6px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
-.tsw{display:none}
+/* Termin: Register Ablauf | Schola | Vorschau auf allen Bildschirmen (Desktop, Tablet, Handy) gleich */
+.tv.grid2{grid-template-columns:minmax(0,1fr);gap:0}
+.tsw{display:flex;margin:10px 0 0;width:100%}.tsw button{flex:1;padding:7px 6px}
+.tv[data-tsub="ablauf"] [data-sec]:not([data-sec="ablauf"]),.tv[data-tsub="schola"] [data-sec]:not([data-sec="schola"]),.tv[data-tsub="vorschau"] [data-sec]:not([data-sec="vorschau"]){display:none}
+.tv>div>.card:first-child+.tsw+.card,.tv>div>.tsw+.card,.tv>div>.tsw+#regc{margin-top:10px}
 .kopfd>summary{display:none}
 @media (max-width:560px){
  body{font-size:14px;padding-inline:10px}
@@ -134,10 +138,6 @@ tr.hid td{opacity:.45}tr.dup td:first-child{box-shadow:inset 3px 0 var(--lr,#b34
  select,input[type=text],input[type=date],input[type=search],textarea{padding:3px 6px;font-size:14px}
  .btn{padding:5px 9px;font-size:13px}
  .fields{gap:6px;margin-block:6px;grid-template-columns:1fr 1fr}.fields label.wide{grid-column:1/-1}.fields label{font-size:11px;gap:2px}.fields label[style*="grid-column"]{grid-column:1/-1}
- .tsw{display:flex;margin:10px 0 0;width:100%}.tsw button{flex:1;padding:7px 6px}
- .tv .grid2,.tv{gap:0}
- .tv[data-tsub="ablauf"] [data-sec]:not([data-sec="ablauf"]),.tv[data-tsub="schola"] [data-sec]:not([data-sec="schola"]),.tv[data-tsub="vorschau"] [data-sec]:not([data-sec="vorschau"]){display:none}
- .tv>div>.card:first-child+.tsw+.card,.tv>div>.tsw+.card,.tv>div>.tsw+#regc{margin-top:10px}
  .kopfd>summary{display:block;cursor:pointer;margin-top:8px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:13px;color:var(--muted);list-style:none}
  .kopfd>summary::-webkit-details-marker{display:none}.kopfd>summary::after{content:' ▾'}.kopfd[open]>summary::after{content:' ▴'}
  .ed td.mhid{display:none}
